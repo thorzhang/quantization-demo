@@ -9,9 +9,9 @@ from uuid import UUID
 
 from fastapi import APIRouter
 
-from app.api.deps import UserServiceDep, UserDep
 from app.core.response.response_route import ResponseAPIRoute
 from app.core.security.jwt import create_access_token
+from app.dep.user_dep import UserDep, UserServiceDep
 from app.schema.user import User, UserCreate
 
 router = APIRouter(route_class=ResponseAPIRoute)

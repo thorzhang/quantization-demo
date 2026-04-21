@@ -17,7 +17,7 @@ load_dotenv()
 
 def create_app() -> FastAPI:
     # 不能删掉这句话，必须强制注册异常处理器，否则的话，处理器无效。
-    import app.core.exception.exception_handlers
+    import app.core.exception.exception_handler
 
     app = FastAPI(
         title="My FastAPI Project",

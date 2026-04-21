@@ -7,7 +7,7 @@
 """
 from uuid import UUID
 
-from app.core.exception.exceptions import NotFoundException, ValidateErrorException
+from app.core.exception.exception import NotFoundException, ValidateErrorException
 from app.repository.user_repository import UserRepository
 from app.schema.user import User, UserCreate
 

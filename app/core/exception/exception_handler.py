@@ -7,8 +7,8 @@
 """
 from typing import Tuple
 
+from app.core.exception.exception import NotFoundException, AppException, ValidateErrorException
 from app.core.exception.exception_registry import exception_registry
-from app.core.exception.exceptions import NotFoundException, AppException, ValidateErrorException
 from app.core.response.response import Response
 
 

@@ -5,23 +5,18 @@
 @Author : zhanglei
 @File   : app.py
 """
-from typing import Annotated, Generator
+from typing import Annotated
 
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 
-from app.core.exception.exceptions import ForbiddenException
+from app.core.dep.core_dep import get_uow
+from app.core.exception.exception import ForbiddenException
 from app.core.security.jwt import verify_token
 from app.db.uow import UnitOfWork
 from app.repository.user_repository import UserRepository
 from app.schema.user import User
 from app.service.user_service import UserService
-
-
-# 👉 UoW（每请求）
-def get_uow() -> Generator[UnitOfWork, None, None]:
-    with UnitOfWork() as uow:
-        yield uow
 
 
 def get_user_repo(uow: UnitOfWork = Depends(get_uow)) -> UserRepository:
