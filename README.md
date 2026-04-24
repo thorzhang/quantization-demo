@@ -121,19 +121,28 @@ app/
 │   ├── v1/
 │   │   ├── endpoint/
 │   │   ├── router.py
+├── cache/
 ├── core/
 │   ├── dep/
+│   ├── enums/
 │   ├── exception/
+│   ├── log/
 │   ├── response/
 │   ├── security/
+│   ├── setting/
+├── db/             # 数据库连接、Base
+├── dep/            # 各项依赖
+├── integration/    # 各项集成
+│   ├── datasource/ # 集成三个A股拉取源
+├── middleware/     # 中间件
 ├── model/          # ORM模型（SQLAlchemy 2）
+├── redis/          
+├── repository/     # 数据访问层
 ├── schema/         # 数据校验（Pydantic v2）
 ├── service/        # 业务逻辑
-├── repository/     # 数据访问层
-├── db/             # 数据库连接、Base
-├── cache/          # 缓存（预留）
+├── task/           # celery task
 ├── util/           # 工具类
-├── dep/            # 各项依赖
+
 ```
 
 ---
@@ -218,7 +227,7 @@ POST /fetch
 
 ## 八、下一步规划
 
-### Step 1（当前）
+### Step 1（已完成）
 
 * 数据采集 + 入库 ✅
 

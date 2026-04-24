@@ -16,7 +16,7 @@ from app.core.enums.task_enum import FetchProgressStatus
 class FetchProgressCreateRequest(BaseModel):
     task_id: UUID
     symbol: str
-    status: str = FetchProgressStatus.PENDING
+    status: str = FetchProgressStatus.RUNNING
     error_msg: str = None
     completed_at: datetime | None = None
 
@@ -25,7 +25,7 @@ class FetchProgressUpdateRequest(BaseModel):
     id: UUID
     task_id: UUID
     symbol: str
-    status: str = FetchProgressStatus.PENDING
+    status: str = FetchProgressStatus.RUNNING
     error_msg: str = None
     completed_at: datetime | None = None
 

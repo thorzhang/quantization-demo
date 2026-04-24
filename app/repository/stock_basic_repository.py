@@ -30,7 +30,7 @@ class StockBasicRepository(BaseRepository[StockBasic]):
 
     def list_symbols(self) -> list[str]:
         stmt = select(StockBasic.symbol)
-        return list(self.db.execute(stmt).scalars().all())[:1]
+        return list(self.db.execute(stmt).scalars().all())
 
     def save_all_stocks(self, stocks: List[Dict[str, str]]):
         """批量保存股票列表"""

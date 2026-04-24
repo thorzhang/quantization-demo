@@ -54,16 +54,26 @@ class StockService:
 
         df = df[~df["name"].str.contains("ST")]
 
-        stock_basics = [
+        # 1. 查出数据库已有的 symbol
+        existing_symbols = set(
+            self.stock_basic_repo.list_symbols()
+        )
+
+        # 2. 只保留数据库中不存在的
+        new_stock_basics = [
             StockBasic(
                 symbol=row["code"],
                 name=row["name"]
             )
             for _, row in df.iterrows()
+            if row["code"] not in existing_symbols
         ]
 
-        self.stock_basic_repo.save_all(stock_basics)
-        return len(stock_basics)
+        # 3. 批量保存
+        if new_stock_basics:
+            self.stock_basic_repo.save_all(new_stock_basics)
+
+        return len(new_stock_basics)
 
     def create_fetch_task(self, resume: bool) -> FetchTaskResponse:
         exist_fetch_tasks = self.fetch_task_repo.get_by_status(FetchTaskStatus.RUNNING)
@@ -88,21 +98,20 @@ class StockService:
     def update_fetch_progress_by_id(self, progress_id: UUID, **kwargs) -> None:
         self.fetch_process_repo.update_by_id(progress_id, **kwargs)
 
-    def fetch_one_history(self, symbol: str) -> List[RemoteStockDailyResponse]:
+    def fetch_one_history(self, symbol: str) -> List[RemoteStockDailyResponse] | None:
         """抓取单只股票（同步，独立事务）"""
-        data = None
-        last_error = None
         # 使用你的数据源
+        last_error = None
         for source in self.sources:
             try:
                 data = source.fetch_one_history(symbol)
-                last_error = None
+                return data
             except Exception as e:
                 last_error = e
 
         if last_error:
             raise RuntimeError(f"All sources failed for {symbol}: {last_error}")
-        return data
+        return None
 
     def bulk_upsert_stock_daily(self, stock_datas: List[RemoteStockDailyResponse]) -> None:
         self.stock_daily_repo.bulk_upsert(stock_datas)
