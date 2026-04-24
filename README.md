@@ -101,9 +101,15 @@ API → Service → Repository → DB
 
 ### 4. 数据处理原则
 
-* 外部数据 → API → Service → Repository → db，不要跨层。
+* 外部数据 → API → Service → Repository → db，不要跨层
 * Repository 不做业务逻辑
 * Model 不参与业务逻辑
+
+### 5. 方法命名原则
+
+* 方法的参数和返回值尽量有类型声明
+* 方法以英语动词开头
+* 方法定义符合python规范
 
 ---
 
@@ -116,6 +122,7 @@ app/
 │   │   ├── endpoint/
 │   │   ├── router.py
 ├── core/
+│   ├── dep/
 │   ├── exception/
 │   ├── response/
 │   ├── security/
@@ -126,7 +133,7 @@ app/
 ├── db/             # 数据库连接、Base
 ├── cache/          # 缓存（预留）
 ├── util/           # 工具类
-├── core/           # 各项依赖
+├── dep/            # 各项依赖
 ```
 
 ---
@@ -273,4 +280,4 @@ POST /fetch
 
 ---
 
-（此文档作为后续开发的统一上下文，不再重复说明）
+（此文档作为后续开发的统一上下文，不再重复说明，你的回复尽量简单明了，最后不要生成建议问题，尽量节省token消耗，以便可以多问答几轮）

@@ -31,3 +31,11 @@ class UnitOfWork:
         if repo_cls not in self._repos:
             self._repos[repo_cls] = repo_cls(self.db)
         return self._repos[repo_cls]
+
+    def commit(self):
+        """显式提交"""
+        self.db.commit()
+
+    def rollback(self):
+        """显式回滚"""
+        self.db.rollback()

@@ -27,7 +27,7 @@ def handle_validate_error_exception(exc: ValidateErrorException) -> Tuple[Respon
         code=exc.code,
         message=exc.message,
         data={}
-    ), 412
+    ), 422
 
 
 @exception_registry.register(AppException)

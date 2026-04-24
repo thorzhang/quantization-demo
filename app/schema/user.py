@@ -8,7 +8,6 @@
 import uuid
 
 from pydantic import BaseModel, Field
-from sqlalchemy.testing.pickleable import User
 
 
 class UserCreate(BaseModel):

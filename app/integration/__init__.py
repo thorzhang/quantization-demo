@@ -5,8 +5,3 @@
 @Author : zhanglei
 @File   : app.py
 """
-from pydantic import BaseModel
-
-
-class FetchStockRequest(BaseModel):
-    symbol: str

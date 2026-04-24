@@ -5,14 +5,20 @@
 @Author : zhanglei
 @File   : app.py
 """
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from typing import Any, Generator
 
-DATABASE_URL = "postgresql://postgres:postgres@10.77.70.139:5432/quantization?client_encoding=utf8"
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
+
+from app.core.setting.config import settings
+
+DATABASE_URL = settings.DATABASE_URL
 
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
+    echo=True,
+    echo_pool=True
 )
 
 SessionLocal = sessionmaker(
@@ -20,3 +26,12 @@ SessionLocal = sessionmaker(
     autoflush=False,
     bind=engine,
 )
+
+
+def get_db() -> Generator[Session, Any, None]:
+    """获取数据库会话（同步）"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

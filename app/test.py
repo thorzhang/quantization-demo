@@ -8,16 +8,10 @@
 
 import akshare as ak
 
-start_date = "20260401"
-end_date = "20260420"
+from app.integration.datasource.tencent import TencentSource
 
-print("DEBUG:", start_date, type(start_date))
+datasource = TencentSource()
 
-df = ak.stock_zh_a_hist(
-    symbol="000001",  # 添加了 'sz' 前缀
-    start_date=start_date,
-    end_date=end_date,
-    adjust="qfq"  # 建议显式指定复权方式
-)
-
-print(df.head(30))
+df = ak.stock_zh_a_hist_tx(symbol='sz000001')
+print("列名:", df.columns.tolist())  # 查看实际列名
+print(df.head())

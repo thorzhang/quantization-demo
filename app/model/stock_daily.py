@@ -8,7 +8,7 @@
 import uuid
 from datetime import date
 
-from sqlalchemy import String, Float, Date, text
+from sqlalchemy import String, Float, Date, text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -32,3 +32,8 @@ class StockDaily(Base):
     high: Mapped[float] = mapped_column(Float)
     low: Mapped[float] = mapped_column(Float)
     volume: Mapped[float] = mapped_column(Float)
+
+    # 添加联合唯一索引
+    __table_args__ = (
+        UniqueConstraint('symbol', 'date', name='uq_stock_daily_symbol_date'),
+    )
