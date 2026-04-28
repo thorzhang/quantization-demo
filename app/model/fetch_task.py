@@ -6,9 +6,9 @@
 @File   : app.py
 """
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 
-from sqlalchemy import String, text, DateTime, Integer
+from sqlalchemy import String, text, DateTime, Integer, Date
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -26,6 +26,8 @@ class FetchTask(Base):
         server_default=text("uuidv7()")
     )
 
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)
+    end_date: Mapped[date] = mapped_column(Date, nullable=False)
     total_stocks: Mapped[int] = mapped_column(Integer, default=0)
     completed_stocks: Mapped[int] = mapped_column(Integer, default=0)
     failed_stocks: Mapped[int] = mapped_column(Integer, default=0)

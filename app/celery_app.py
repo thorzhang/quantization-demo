@@ -8,6 +8,7 @@
 import logging
 
 from celery import Celery
+from celery.schedules import crontab
 from kombu import Queue
 
 from app.core.log.logger import setup_logger
@@ -65,6 +66,21 @@ celery_app.conf.update(
     task_acks_late=True,  # 任务完成后才确认
     task_reject_on_worker_lost=True,  # worker 丢失时拒绝任务
 )
+
+# ==================== 定时任务配置 ====================
+celery_app.conf.beat_schedule = {
+    # 每天凌晨2点更新所有股票数据
+    'update-all-stocks-daily': {
+        'task': 'app.task.stock_init_task.update_all_stocks_daily',
+        'schedule': crontab(hour=2, minute=0),  # 每天凌晨2点
+        'args': (),
+        'kwargs': {},
+        'options': {
+            'queue': 'stock_fetch',
+            'expires': 3600,  # 1小时内未执行则过期
+        }
+    }
+}
 
 # 自动发现任务
 celery_app.autodiscover_tasks(["app.task.stock_init_task"])

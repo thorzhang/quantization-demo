@@ -10,7 +10,7 @@ import logging
 # -*- coding: utf-8 -*-
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List
 from uuid import UUID
 
@@ -29,7 +29,10 @@ logger = logging.getLogger(__name__)
 
 
 @celery_app.task(bind=True, name="app.task.stock_init_task.fetch_all_stocks")
-def fetch_all_stocks(self, task_id: UUID, resume: bool = True):
+def fetch_all_stocks(self, task_id: UUID,
+                     resume: bool = True,
+                     start_date: str = "1970-01-01",
+                     end_date: str = "2050-01-01") -> dict:
     logger.info("celery task: fetch_all_stocks任务启动")
 
     from app.service.factory.stock_service_factory import create_stock_service
@@ -64,7 +67,7 @@ def fetch_all_stocks(self, task_id: UUID, resume: bool = True):
             batch = pending_symbols[i:i + batch_size]
 
             header = [
-                fetch_single_stock.s(symbol, task_id)
+                fetch_single_stock.s(symbol, task_id, start_date, end_date)
                 for symbol in batch
             ]
 
@@ -98,7 +101,7 @@ def fetch_all_stocks(self, task_id: UUID, resume: bool = True):
     max_retries=3,
     default_retry_delay=60
 )
-def fetch_single_stock(self, symbol: str, task_id: UUID):
+def fetch_single_stock(self, symbol: str, task_id: UUID, start_date: str, end_date: str) -> dict:
     from app.service.factory.stock_service_factory import create_stock_service
 
     logger.info("celery task: fetch_single_stock启动，task_id=%s，symbol=%s", task_id, symbol)
@@ -135,7 +138,7 @@ def fetch_single_stock(self, symbol: str, task_id: UUID):
     # 2️⃣ 无事务：外部IO（避免长事务）
     # =========================
     try:
-        stock_datas = stock_service.fetch_one_history(symbol)
+        stock_datas = stock_service.fetch_one_history(symbol, start_date, end_date)
 
     except Exception as e:
         # =========================
@@ -242,6 +245,18 @@ def on_batch_complete(results: List[dict], task_id: UUID, batch_id: str):
         redis_client.delete(key)  # 释放执行权，允许重试
 
         raise
+
+
+@celery_app.task(bind=True, name="app.task.stock_init_task.update_all_stocks_daily")
+def update_all_stocks_daily(self):
+    from app.service.factory.stock_service_factory import create_stock_service
+    logger.info("celery task: update_all_stocks_daily任务启动")
+    start_date = (datetime.now() - timedelta(days=1)).date()
+    end_date = datetime.now().date()
+    with UnitOfWork() as uow:
+        stock_service = create_stock_service(uow.db)
+        stock_service.create_fetch_task(start_date, end_date)
+    logger.info("celery task: update_all_stocks_daily任务结束")
 
 
 @celery_app.task(name="app.task.stock_init_task.clear_progress")

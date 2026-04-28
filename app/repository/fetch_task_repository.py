@@ -5,6 +5,7 @@
 @Author : zhanglei
 @File   : app.py
 """
+from datetime import date
 from typing import Optional, List
 from uuid import UUID
 
@@ -20,8 +21,12 @@ class FetchTaskRepository(BaseRepository[FetchTask]):
     def get_fetch_task(self, task_id: UUID) -> Optional[FetchTask]:
         return self.get(task_id)
 
-    def get_by_status(self, status: str) -> List[FetchTask]:
-        stmt = select(self.model).where(self.model.status == status)
+    def get_by_status_and_date_range(self, status: str, start_date: date, end_date: date) -> List[FetchTask]:
+        stmt = select(self.model).where(
+            self.model.status == status,
+            self.model.start_date >= start_date,
+            self.model.end_date <= end_date
+        )
         result = self.db.execute(stmt)
         return list(result.scalars().all())
 

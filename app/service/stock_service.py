@@ -6,11 +6,13 @@
 @File   : app.py
 """
 import logging
+from datetime import datetime
 from typing import List
 from uuid import UUID
 
 import akshare as ak
 
+from app.core.constant.stock_constant import MIN_DATE, MAX_DATE
 from app.core.enums.task_enum import FetchTaskStatus
 from app.integration.datasource.baostock import BaostockSource
 from app.integration.datasource.eastmoney import EastMoneySource
@@ -75,15 +77,21 @@ class StockService:
 
         return len(new_stock_basics)
 
-    def create_fetch_task(self, resume: bool) -> FetchTaskResponse:
-        exist_fetch_tasks = self.fetch_task_repo.get_by_status(FetchTaskStatus.RUNNING)
+    def create_fetch_task(self, start_date: str = MIN_DATE, end_date: str = MAX_DATE) -> FetchTaskResponse:
+        exist_fetch_tasks = self.fetch_task_repo.get_by_status_and_date_range(
+            FetchTaskStatus.RUNNING,
+            datetime.strptime(start_date, "%Y-%m-%d").date(),
+            datetime.strptime(end_date, "%Y-%m-%d").date())
         if len(exist_fetch_tasks) >= 1:
             fetch_task = exist_fetch_tasks[0]
+            resume = True
         else:
-            fetch_task = FetchTask(**FetchTaskCreateRequest().model_dump(mode="json"))
+            fetch_task = FetchTask(
+                **FetchTaskCreateRequest(start_date=start_date, end_date=end_date).model_dump(mode="json"))
             self.fetch_task_repo.create(fetch_task)
+            resume = False
 
-        fetch_all_stocks.delay(fetch_task.id, resume)
+        fetch_all_stocks.delay(fetch_task.id, resume, start_date, end_date)
         logger.info("拉取股票任务开始了")
         return FetchTaskResponse.model_validate(fetch_task)
 
@@ -98,13 +106,13 @@ class StockService:
     def update_fetch_progress_by_id(self, progress_id: UUID, **kwargs) -> None:
         self.fetch_process_repo.update_by_id(progress_id, **kwargs)
 
-    def fetch_one_history(self, symbol: str) -> List[RemoteStockDailyResponse] | None:
+    def fetch_one_history(self, symbol: str, start_date: str, end_date: str) -> List[RemoteStockDailyResponse] | None:
         """抓取单只股票（同步，独立事务）"""
         # 使用你的数据源
         last_error = None
         for source in self.sources:
             try:
-                data = source.fetch_one_history(symbol)
+                data = source.fetch_one_history(symbol, start_date, end_date)
                 return data
             except Exception as e:
                 last_error = e
@@ -124,7 +132,7 @@ class StockService:
         """获取未完成的股票"""
         completed = self.fetch_process_repo.get_completed_stocks(task_id)
 
-        completed_symbols = [c[0] for c in completed]
+        completed_symbols = [c for c in completed]
         all_symbols = self.get_all_symbols()
 
         return [s for s in all_symbols if s not in completed_symbols]

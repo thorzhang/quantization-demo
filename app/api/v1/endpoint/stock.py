@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.dep.stock_dep import StockServiceDep
 from app.model.fetch_progress import FetchProgress
-from app.schema.fetch_task_schema import FetchTaskRequest
 from app.task.progress_tracker import progress_tracker
 
 router = APIRouter()
@@ -24,12 +23,12 @@ def init_stock(stock_service: StockServiceDep):
 
 
 @router.post("/fetch-all")
-def fetch_all(fetch_task_request: FetchTaskRequest, stock_service: StockServiceDep):
+def fetch_all(stock_service: StockServiceDep):
     """
         启动全量抓取任务
         - **resume**: 是否启用断点续传（默认 True）
     """
-    return stock_service.create_fetch_task(fetch_task_request.resume)
+    return stock_service.create_fetch_task()
 
 
 @router.get("/task-status/{task_id}")

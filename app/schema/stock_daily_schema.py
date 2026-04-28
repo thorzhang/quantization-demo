@@ -22,6 +22,7 @@ class RemoteStockDailyResponse(BaseModel):
     high: float
     low: float
     volume: float
+    source: str
 
     class Config:
         from_attributes = True  # 支持 ORM 对象

@@ -10,6 +10,8 @@ from datetime import datetime
 
 import baostock as bs
 
+from app.core.constant.stock_constant import MIN_DATE, MAX_DATE
+from app.core.enums.source_enum import StockSource
 from app.integration.datasource.base import BaseDataSource
 from app.schema.stock_daily_schema import RemoteStockDailyResponse
 
@@ -18,7 +20,8 @@ logger = logging.getLogger(__name__)
 
 class BaostockSource(BaseDataSource):
 
-    def fetch_one_history(self, symbol: str) -> list[RemoteStockDailyResponse]:
+    def fetch_one_history(self, symbol: str, start_date: str = MIN_DATE, end_date: str = MAX_DATE) -> list[
+        RemoteStockDailyResponse]:
         lg = bs.login()
         if lg.error_code != "0":
             raise RuntimeError(f"baostock login failed: {lg.error_msg}")
@@ -29,11 +32,13 @@ class BaostockSource(BaseDataSource):
             rs = bs.query_history_k_data_plus(
                 bs_code,
                 "date,open,high,low,close,volume",
+                start_date=start_date,
+                end_date=end_date,
                 frequency="d",
                 adjustflag="2",  # 前复权
             )
 
-            logger.info("BaoStock拉取股票（s%）历史结束", symbol)
+            logger.info("BaoStock拉取股票（%s）历史结束", symbol)
 
             if rs.error_code != "0":
                 raise RuntimeError(f"baostock query failed: {rs.error_msg}")
@@ -44,7 +49,7 @@ class BaostockSource(BaseDataSource):
                 row = rs.get_row_data()
 
                 # 过滤空数据
-                if not row or row[0] == "":
+                if not row or any(v == "" for v in row[:6]):
                     continue
 
                 result.append(
@@ -56,6 +61,7 @@ class BaostockSource(BaseDataSource):
                         low=float(row[3]),
                         close=float(row[4]),
                         volume=float(row[5]),
+                        source=StockSource.BAOSTOCK
                     )
                 )
 
@@ -67,8 +73,8 @@ class BaostockSource(BaseDataSource):
         finally:
             bs.logout()
 
-    @staticmethod
-    def _to_bs_code(symbol: str) -> str:
+    @classmethod
+    def _to_bs_code(cls, symbol: str) -> str:
         """
         转换为 baostock 格式：
         600000 -> sh.600000

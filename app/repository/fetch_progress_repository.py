@@ -10,6 +10,7 @@ from uuid import UUID
 
 from sqlalchemy import select
 
+from app.core.enums.task_enum import FetchProgressStatus
 from app.model.fetch_progress import FetchProgress
 from app.repository.base_repository import BaseRepository
 
@@ -23,7 +24,7 @@ class FetchProgressRepository(BaseRepository[FetchProgress]):
             select(FetchProgress.symbol)
             .where(
                 FetchProgress.task_id == task_id,
-                FetchProgress.status.in_(["success", "failed"])
+                FetchProgress.status.in_([FetchProgressStatus.DONE, FetchProgressStatus.FAILED])
             )
             .distinct()
         )
@@ -38,7 +39,7 @@ class FetchProgressRepository(BaseRepository[FetchProgress]):
             select(FetchProgress.symbol)
             .where(
                 FetchProgress.task_id == task_id,
-                FetchProgress.status.in_(["failed"])
+                FetchProgress.status.in_([FetchProgressStatus.DONE])
             )
             .distinct()
         )
@@ -53,7 +54,7 @@ class FetchProgressRepository(BaseRepository[FetchProgress]):
             select(FetchProgress.symbol)
             .where(
                 FetchProgress.task_id == task_id,
-                FetchProgress.status.in_(["failed"])
+                FetchProgress.status.in_([FetchProgressStatus.FAILED])
             )
             .distinct()
         )

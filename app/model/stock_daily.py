@@ -32,6 +32,7 @@ class StockDaily(Base):
     high: Mapped[float] = mapped_column(Float)
     low: Mapped[float] = mapped_column(Float)
     volume: Mapped[float] = mapped_column(Float)
+    source: Mapped[str] = mapped_column(String(20))
 
     # 添加联合唯一索引
     __table_args__ = (
