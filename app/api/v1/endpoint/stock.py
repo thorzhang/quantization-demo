@@ -16,18 +16,14 @@ from app.task.progress_tracker import progress_tracker
 router = APIRouter()
 
 
-@router.post("/init")
-def init_stock(stock_service: StockServiceDep):
-    stock_service.init_stock_list()
+@router.post("/basic/all")
+def update_stock_basic_delta(stock_service: StockServiceDep):
+    stock_service.update_stock_basic_delta()
     return {"msg": "ok"}
 
 
-@router.post("/fetch-all")
-def fetch_all(stock_service: StockServiceDep):
-    """
-        启动全量抓取任务
-        - **resume**: 是否启用断点续传（默认 True）
-    """
+@router.post("/daily/all")
+def update_stock_daily_all(stock_service: StockServiceDep):
     return stock_service.create_fetch_task()
 
 

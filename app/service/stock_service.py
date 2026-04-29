@@ -50,11 +50,14 @@ class StockService:
             EastMoneySource()
         ]
 
-    # 初始化股票列表
-    def init_stock_list(self):
+    # 增量更新股票列表
+    def update_stock_basic_delta(self):
         df = ak.stock_info_a_code_name()
 
-        df = df[~df["name"].str.contains("ST")]
+        df = df[~(
+                df["name"].str.contains("ST|退", na=False)
+                | df["code"].str.startswith("9", na=False)
+        )]
 
         # 1. 查出数据库已有的 symbol
         existing_symbols = set(
@@ -91,7 +94,7 @@ class StockService:
             self.fetch_task_repo.create(fetch_task)
             resume = False
 
-        fetch_all_stocks.delay(fetch_task.id, resume, start_date, end_date)
+        fetch_all_stocks.delay(fetch_task.id, resume)
         logger.info("拉取股票任务开始了")
         return FetchTaskResponse.model_validate(fetch_task)
 

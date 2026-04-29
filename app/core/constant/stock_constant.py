@@ -5,5 +5,10 @@
 @Author : zhanglei
 @File   : app.py
 """
+from typing import List
+
 MIN_DATE: str = "1970-01-01"
 MAX_DATE: str = "2050-01-01"
+
+SH_PREFIXES: List[str] = ["5", "6"]
+SZ_PREFIXES: List[str] = ["0", "2", "3"]

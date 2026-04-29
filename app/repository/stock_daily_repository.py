@@ -7,6 +7,7 @@
 """
 from typing import List
 
+from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import insert
 
 from app.model.stock_daily import StockDaily
@@ -31,9 +32,17 @@ class StockDailyRepository(BaseRepository[StockDaily]):
             set_={
                 "open": stmt.excluded.open,
                 "close": stmt.excluded.close,
+                "pre_close": stmt.excluded.pre_close,
                 "high": stmt.excluded.high,
                 "low": stmt.excluded.low,
                 "volume": stmt.excluded.volume,
+                "amount": stmt.excluded.amount,
+                "turnover": stmt.excluded.turnover,
+                "pct_chg": stmt.excluded.pct_chg,
+                "pe_ttm": stmt.excluded.pe_ttm,
+                "pb_mrq": stmt.excluded.pb_mrq,
+                "is_st": stmt.excluded.is_st,
+                "updated_at": func.now()
             }
         )
 

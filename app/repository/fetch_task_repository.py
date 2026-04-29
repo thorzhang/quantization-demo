@@ -9,7 +9,7 @@ from datetime import date
 from typing import Optional, List
 from uuid import UUID
 
-from sqlalchemy import text, select
+from sqlalchemy import select, update, case, func
 
 from app.model.fetch_task import FetchTask
 from app.repository.base_repository import BaseRepository
@@ -36,20 +36,41 @@ class FetchTaskRepository(BaseRepository[FetchTask]):
     def create_fetch_task(self, fetch_task: FetchTask) -> FetchTask:
         return self.create(fetch_task)
 
-    def increment_fetch_task(self, task_id, success, failed):
-        self.db.execute(
-            text("""
-                 UPDATE t_fetch_task
-                 SET completed_stocks = completed_stocks + :success,
-                     failed_stocks    = failed_stocks + :failed,
-                     status           =
-                         (CASE
-                              WHEN status != 'done' AND
-                          completed_stocks + failed_stocks + :success + :failed >= total_stocks THEN 'done'
-                              ELSE status
-                         END),
-                     updated_at       = NOW()
-                 WHERE id = :task_id
-                 """),
-            {"success": success, "failed": failed, "task_id": task_id}
+    def increment_fetch_task(self, task_id: UUID, success: int, failed: int):
+        new_total = (
+                FetchTask.completed_stocks +
+                FetchTask.failed_stocks +
+                success +
+                failed
         )
+
+        is_done = new_total >= FetchTask.total_stocks
+
+        stmt = (
+            update(FetchTask)
+            .where(FetchTask.id == task_id)
+            .values(
+                completed_stocks=FetchTask.completed_stocks + success,
+                failed_stocks=FetchTask.failed_stocks + failed,
+
+                status=case(
+                    (
+                        (FetchTask.status != 'done') & is_done,
+                        'done'
+                    ),
+                    else_=FetchTask.status
+                ),
+
+                completed_at=case(
+                    (
+                        (FetchTask.status != 'done') & is_done,
+                        func.now()
+                    ),
+                    else_=FetchTask.completed_at
+                ),
+
+                updated_at=func.now()
+            )
+        )
+
+        self.db.execute(stmt)

@@ -69,10 +69,21 @@ celery_app.conf.update(
 
 # ==================== 定时任务配置 ====================
 celery_app.conf.beat_schedule = {
-    # 每天凌晨2点更新所有股票数据
+    # 每天17点更新所有股票数据
+    'init-stock-list': {
+        'task': 'app.task.stock_init_task.update_stock_basic_delta',
+        'schedule': crontab(hour=17, minute=00),
+        'args': (),
+        'kwargs': {},
+        'options': {
+            'queue': 'stock_fetch',
+            'expires': 3600,  # 1小时内未执行则过期
+        }
+    },
+    # 每天18点更新所有股票数据
     'update-all-stocks-daily': {
-        'task': 'app.task.stock_init_task.update_all_stocks_daily',
-        'schedule': crontab(hour=2, minute=0),  # 每天凌晨2点
+        'task': 'app.task.stock_init_task.update_stock_daily_all',
+        'schedule': crontab(hour=18, minute=00),
         'args': (),
         'kwargs': {},
         'options': {
@@ -83,6 +94,6 @@ celery_app.conf.beat_schedule = {
 }
 
 # 自动发现任务
-celery_app.autodiscover_tasks(["app.task.stock_init_task"])
+celery_app.autodiscover_tasks(["app.task"])
 
 logger.info("Celery app initialized")
