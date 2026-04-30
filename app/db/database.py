@@ -18,7 +18,11 @@ engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
     echo=True,
-    echo_pool=True
+    echo_pool=True,
+    pool_size=10,
+    max_overflow=20,
+    pool_timeout=10,  # 获取连接超时
+    pool_recycle=1800,  # 防断连
 )
 
 SessionLocal = sessionmaker(

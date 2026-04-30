@@ -52,6 +52,9 @@ class StockService:
 
     # 增量更新股票列表
     def update_stock_basic_delta(self):
+
+        logger.info("增量拉取股票代码开始")
+
         df = ak.stock_info_a_code_name()
 
         df = df[~(
@@ -78,6 +81,7 @@ class StockService:
         if new_stock_basics:
             self.stock_basic_repo.save_all(new_stock_basics)
 
+        logger.info("增量拉取股票代码结束")
         return len(new_stock_basics)
 
     def create_fetch_task(self, start_date: str = MIN_DATE, end_date: str = MAX_DATE) -> FetchTaskResponse:

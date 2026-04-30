@@ -95,29 +95,27 @@ def fetch_all_stocks(self, task_id: UUID, resume: bool = True) -> dict:
 @celery_app.task(
     bind=True,
     name="app.task.stock_init_task.fetch_single_stock",
-    max_retries=3,
-    default_retry_delay=60
+    soft_time_limit=55,  # 给你清理时间
+    time_limit=60  # 强制 kill
 )
-def fetch_single_stock(self, symbol: str, task_id: str) -> dict:
+def fetch_single_stock(self, symbol: str, task_id: UUID) -> dict:
     from app.service.factory.stock_service_factory import create_stock_service
 
-    logger.info("celery task: fetch_single_stock启动，task_id=%s，symbol=%s", task_id, symbol)
+    logger.info("celery task start: task_id=%s symbol=%s", task_id, symbol)
 
     # =========================
-    # 1️⃣ 短事务：初始化 / 幂等控制
+    # 1️⃣ 短事务：初始化
     # =========================
     with UnitOfWork() as uow:
         stock_service = create_stock_service(uow.db)
 
         progress = stock_service.get_fetch_progress(task_id, symbol)
 
-        # 已完成 → 幂等返回
         if progress and progress.status == "success":
             return {"status": "already_completed"}
 
-        # 不存在 → 创建
         if not progress:
-            stock_service.create_fetch_progress(
+            progress = stock_service.create_fetch_progress(
                 FetchProgressCreateRequest(
                     task_id=task_id,
                     symbol=symbol,
@@ -125,7 +123,6 @@ def fetch_single_stock(self, symbol: str, task_id: str) -> dict:
                 )
             )
         else:
-            # 存在但不是成功 → 重置为 running（用于 retry 场景）
             stock_service.update_fetch_progress_by_id(
                 progress.id,
                 status=FetchProgressStatus.RUNNING
@@ -133,38 +130,41 @@ def fetch_single_stock(self, symbol: str, task_id: str) -> dict:
 
         fetch_task = stock_service.get_fetch_task(task_id)
 
+    progress_id = progress.id if progress else None
+
     # =========================
-    # 2️⃣ 无事务：外部IO（避免长事务）
+    # 2️⃣ IO 层（带超时保护）
     # =========================
     try:
-        stock_datas = stock_service.fetch_one_history(symbol, fetch_task.start_date, fetch_task.end_date)
+        logger.info("fetch start: %s", symbol)
 
+        stock_datas = stock_service.fetch_one_history(
+            symbol,
+            fetch_task.start_date,
+            fetch_task.end_date
+        )
+
+        logger.info("fetch done: %s", symbol)
     except Exception as e:
-        # =========================
-        # 3️⃣ retry 前保证状态一致
-        # =========================
+        logger.exception("fetch failed: task_id=%s symbol=%s", task_id, symbol)
+
         with UnitOfWork() as uow:
             stock_service = create_stock_service(uow.db)
+            stock_service.update_fetch_progress_by_id(
+                progress_id,
+                status=FetchProgressStatus.FAILED
+            )
 
-            progress = stock_service.get_fetch_progress(task_id, symbol)
-
-            if progress:
-                stock_service.update_fetch_progress_by_id(
-                    progress.id,
-                    status=FetchProgressStatus.RETRYING
-                )
-
-        raise self.retry(exc=e)
+        return {"status": "failed", "error": str(e)}
 
     # =========================
-    # 4️⃣ 短事务：写入结果
+    # 3️⃣ 写入结果
     # =========================
     with UnitOfWork() as uow:
         stock_service = create_stock_service(uow.db)
 
         progress = stock_service.get_fetch_progress(task_id, symbol)
 
-        # 再次幂等保护（防并发 / 重试）
         if progress and progress.status == "success":
             return {"status": "already_completed"}
 
@@ -176,8 +176,7 @@ def fetch_single_stock(self, symbol: str, task_id: str) -> dict:
             completed_at=datetime.now()
         )
 
-        logger.info("celery task: fetch_single_stock结束，task_id=%s, symbol=%s",
-                    task_id, symbol)
+    logger.info("celery task end: task_id=%s symbol=%s", task_id, symbol)
 
     return {"status": "success"}
 

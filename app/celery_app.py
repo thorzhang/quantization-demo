@@ -15,6 +15,7 @@ from app.core.log.logger import setup_logger
 from app.core.setting.config import settings
 
 setup_logger("celery")
+
 logger = logging.getLogger(__name__)
 
 # 创建 Celery 应用

@@ -52,7 +52,6 @@ class StockDaily(Base):
     pe_ttm: Mapped[float] = mapped_column(Float, comment="市盈率（TTM）")
     pb_mrq: Mapped[float] = mapped_column(Float, comment="市净率（MRQ）")
 
-    trade_status: Mapped[str] = mapped_column(String(2), comment="该交易日股票是否正常交易的状态标识")
     is_st: Mapped[bool] = mapped_column(Boolean, comment="是否ST股票")
 
     source: Mapped[str] = mapped_column(
