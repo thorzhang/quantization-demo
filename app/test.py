@@ -6,8 +6,16 @@
 @File   : app.py
 """
 from app.integration.datasource.baostock import BaostockSource
+from app.integration.datasource.tencent import TencentSource
 
-symbol = "000001"
+try:
+    bs = BaostockSource()
+    datas = bs.fetch_one_history("600009", "2026-05-06", "2026-05-06")
 
-bs = BaostockSource()
-bs.fetch_one_history("000001")
+    tx = TencentSource()
+    datas = tx.fetch_one_history("600009", "2026-05-06", "2026-05-06")
+except Exception as e:
+    tx = TencentSource()
+    datas = tx.fetch_one_history("600009", "2026-05-05", "2026-05-06")
+
+print(datas)

@@ -5,6 +5,7 @@
 @Author : zhanglei
 @File   : app.py
 """
+import logging
 from datetime import datetime
 
 import baostock as bs
@@ -13,6 +14,8 @@ from app.core.constant.stock_constant import MIN_DATE, MAX_DATE, SH_PREFIXES, SZ
 from app.core.enums.source_enum import StockSource
 from app.integration.datasource.base import BaseDataSource
 from app.schema.stock_daily_schema import RemoteStockDailyResponse
+
+logger = logging.getLogger(__name__)
 
 
 class BaostockSource(BaseDataSource):
@@ -95,9 +98,6 @@ class BaostockSource(BaseDataSource):
                         source=StockSource.BAOSTOCK
                     )
                 )
-
-            if not result:
-                raise ValueError("empty data")
 
             logger.info("BaoStock拉取股票（%s）历史结束，共 %d 条", symbol, len(result))
 

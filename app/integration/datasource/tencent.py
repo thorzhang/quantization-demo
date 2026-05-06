@@ -28,7 +28,7 @@ class TencentSource(BaseDataSource):
         df = ak.stock_zh_a_hist_tx(symbol=tx_code, start_date=processed_start_date, end_date=processed_end_date_1)
 
         if df is None or df.empty:
-            raise ValueError("empty data")
+            return []
 
         return [
             RemoteStockDailyResponse(

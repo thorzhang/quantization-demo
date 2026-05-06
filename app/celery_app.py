@@ -65,10 +65,10 @@ celery_app.conf.update(
 
 # ==================== 定时任务配置 ====================
 celery_app.conf.beat_schedule = {
-    # 每天17点更新所有股票数据
+    # 每天20点更新所有股票数据
     'init-stock-list': {
         'task': 'app.task.stock_init_task.update_stock_basic_delta',
-        'schedule': crontab(hour=17, minute=00),
+        'schedule': crontab(hour=20, minute=0, day_of_week='1-5'),
         'args': (),
         'kwargs': {},
         'options': {
@@ -76,10 +76,10 @@ celery_app.conf.beat_schedule = {
             'expires': 3600,  # 1小时内未执行则过期
         }
     },
-    # 每天18点更新所有股票数据
+    # 每天21点更新所有股票数据
     'update-all-stocks-daily': {
         'task': 'app.task.stock_init_task.update_stock_daily_all',
-        'schedule': crontab(hour=18, minute=00),
+        'schedule': crontab(hour=21, minute=0, day_of_week='1-5'),
         'args': (),
         'kwargs': {},
         'options': {

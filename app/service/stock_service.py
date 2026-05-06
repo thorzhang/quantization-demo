@@ -14,7 +14,6 @@ import akshare as ak
 
 from app.core.enums.task_enum import FetchTaskStatus
 from app.integration.datasource.baostock import BaostockSource
-from app.integration.datasource.eastmoney import EastMoneySource
 from app.integration.datasource.tencent import TencentSource
 from app.model.fetch_progress import FetchProgress
 from app.model.fetch_task import FetchTask
@@ -46,7 +45,7 @@ class StockService:
         self.sources = [
             BaostockSource(),
             TencentSource(),
-            EastMoneySource()
+            # EastMoneySource()
         ]
 
     # 增量更新股票列表
@@ -120,8 +119,7 @@ class StockService:
         self.fetch_process_repo.update_by_id(progress_id, **kwargs)
 
     def fetch_one_history(self, symbol: str, start_date: str, end_date: str) -> List[RemoteStockDailyResponse] | None:
-        """抓取单只股票（同步，独立事务）"""
-        # 使用你的数据源
+        """抓取单只股票（同步）"""
         last_error = None
         for source in self.sources:
             try:

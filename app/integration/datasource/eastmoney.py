@@ -26,7 +26,7 @@ class EastMoneySource(BaseDataSource):
         )
 
         if df is None or df.empty:
-            raise ValueError("empty data")
+            return []
 
         # =====================================================
         # 1️⃣ 先 copy（数据隔离，避免 view / chained issue）
