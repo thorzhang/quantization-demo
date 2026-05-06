@@ -5,9 +5,10 @@
 @Author : zhanglei
 @File   : app.py
 """
-from typing import List
+from collections import defaultdict
+from typing import List, Dict
 
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 
 from app.model.stock_daily import StockDaily
@@ -49,3 +50,30 @@ class StockDailyRepository(BaseRepository[StockDaily]):
         # 真正 bulk 执行（重点）
         self.db.execute(stmt, values)
         self.db.flush()
+
+    def get_all_recent_kline(self, limit: int) -> Dict[str, List[StockDaily]]:
+        subquery = (
+            select(
+                StockDaily.id,
+                func.row_number().over(
+                    partition_by=StockDaily.symbol,
+                    order_by=StockDaily.date.desc()
+                ).label("rn")
+            ).select_from(StockDaily)
+        ).subquery()
+
+        stmt = (
+            select(StockDaily)
+            .join(subquery, StockDaily.id == subquery.c.id)
+            .where(subquery.c.rn <= limit)
+            .order_by(StockDaily.symbol, StockDaily.date.asc())
+        )
+
+        rows = self.db.execute(stmt).scalars().all()
+
+        grouped: Dict[str, List[StockDaily]] = defaultdict(list)
+
+        for obj in rows:
+            grouped[obj.symbol].append(obj)
+
+        return grouped

@@ -7,7 +7,7 @@
 """
 import logging
 from datetime import datetime
-from typing import List
+from typing import List, Dict
 from uuid import UUID
 
 import akshare as ak
@@ -25,6 +25,7 @@ from app.repository.stock_daily_repository import StockDailyRepository
 from app.schema.fetch_progress_schema import FetchProgressResponse, FetchProgressCreateRequest
 from app.schema.fetch_task_schema import FetchTaskResponse, FetchTaskCreateRequest
 from app.schema.stock_daily_schema import RemoteStockDailyResponse
+from app.strategy.selector import StrategySelector
 from app.task.stock_init_task import fetch_all_stocks
 
 logger = logging.getLogger(__name__)
@@ -176,3 +177,35 @@ class StockService:
         if fetch_progress is None:
             return None
         return FetchProgressResponse.model_validate(fetch_progress)
+
+    def get_recommend_stocks(self, strategy_name: str = "ma_volume") -> List[Dict]:
+        strategy = StrategySelector.get_strategy(strategy_name)
+
+        all_data = self.stock_daily_repo.get_all_recent_kline(limit=30)
+
+        results: List[Dict] = []
+
+        for symbol, kline in all_data.items():
+            if not kline:
+                continue
+
+            data = [
+                {
+                    "close": d.close,
+                    "volume": d.volume,
+                    "pct_chg": d.pct_chg,
+                }
+                for d in kline
+            ]
+
+            result = strategy.evaluate(data)
+
+            results.append({
+                "symbol": symbol,
+                "signal": result["signal"],
+                "score": result["score"]
+            })
+
+        results.sort(key=lambda x: x["score"], reverse=True)
+
+        return results[:20]

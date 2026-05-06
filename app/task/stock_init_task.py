@@ -10,7 +10,7 @@ import logging
 # -*- coding: utf-8 -*-
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List
 from uuid import UUID
 
@@ -250,8 +250,8 @@ def on_batch_complete(results: List[dict], task_id: UUID, batch_id: str):
 def update_stock_daily_all(self):
     from app.service.factory.stock_service_factory import create_stock_service
     logger.info("celery task: update_stock_daily_all任务启动")
-    start_date = datetime.now().date().strftime("%Y-%m-%d")
-    end_date = start_date
+    start_date = (datetime.now() - timedelta(1)).date().strftime("%Y-%m-%d")
+    end_date = datetime.now().date().strftime("%Y-%m-%d")
     with UnitOfWork() as uow:
         stock_service = create_stock_service(uow.db)
         stock_service.create_fetch_task(FetchTaskCreateRequest(start_date=start_date, end_date=end_date))

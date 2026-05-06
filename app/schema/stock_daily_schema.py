@@ -16,6 +16,10 @@ class StockCreateRequest(BaseModel):
     symbol: str
 
 
+class StockRecommendRequest(BaseModel):
+    strategy_name: str = "ma_volume"
+
+
 class RemoteStockDailyResponse(BaseModel):
     symbol: str
     date: date
