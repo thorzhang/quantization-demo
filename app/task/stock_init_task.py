@@ -23,6 +23,7 @@ from app.db.uow import UnitOfWork
 from app.model.fetch_progress import FetchProgress
 from app.model.fetch_task import FetchTask
 from app.schema.fetch_progress_schema import FetchProgressCreateRequest
+from app.schema.fetch_task_schema import FetchTaskCreateRequest
 from app.task.progress_tracker import progress_tracker
 
 logger = logging.getLogger(__name__)
@@ -253,7 +254,7 @@ def update_stock_daily_all(self):
     end_date = datetime.now().date().strftime("%Y-%m-%d")
     with UnitOfWork() as uow:
         stock_service = create_stock_service(uow.db)
-        stock_service.create_fetch_task(start_date, end_date)
+        stock_service.create_fetch_task(FetchTaskCreateRequest(start_date=start_date, end_date=end_date))
     logger.info("celery task: update_stock_daily_all任务结束")
 
 

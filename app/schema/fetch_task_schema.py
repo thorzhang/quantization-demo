@@ -10,30 +10,13 @@ from uuid import UUID
 
 from pydantic import BaseModel, field_validator
 
+from app.core.constant.stock_constant import MIN_DATE, MAX_DATE
 from app.core.enums.task_enum import FetchTaskStatus
 
 
 class FetchTaskCreateRequest(BaseModel):
-    start_date: str
-    end_date: str
-    total_stocks: int = 0
-    completed_stocks: int = 0
-    failed_stocks: int = 0
-    status: str = FetchTaskStatus.PENDING
-    started_at: datetime = datetime.now()
-    completed_at: datetime | None = None
-
-
-class FetchTaskUpdateRequest(BaseModel):
-    id: UUID
-    start_date: str
-    end_date: str
-    total_stocks: int = 0
-    completed_stocks: int = 0
-    failed_stocks: int = 0
-    status: str = FetchTaskStatus.PENDING
-    started_at: datetime = datetime.now()
-    completed_at: datetime | None = None
+    start_date: str = MIN_DATE
+    end_date: str = MAX_DATE
 
 
 class FetchTaskResponse(BaseModel):
@@ -44,7 +27,7 @@ class FetchTaskResponse(BaseModel):
     completed_stocks: int = 0
     failed_stocks: int = 0
     status: str = FetchTaskStatus.PENDING
-    started_at: datetime = datetime.now()
+    started_at: datetime | None = None
     completed_at: datetime | None = None
 
     @field_validator('start_date', 'end_date', mode='before')

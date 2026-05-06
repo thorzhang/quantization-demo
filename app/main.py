@@ -5,19 +5,26 @@
 @Author : zhanglei
 @File   : app.py
 """
-import logging
+import os
+from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
 from app.api.v1.router import api_router
-from app.core.log.logger import setup_logger
+from app.core.log.logging import init_logging
 from app.middleware.response_middleware import response_middleware
 
 load_dotenv()
 
-setup_logger("app")
-logger = logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 日志初始化
+    service_name = os.getenv("SERVICE_NAME", "app")
+    init_logging(service_name)
+
+    yield
 
 
 def create_app() -> FastAPI:
@@ -26,14 +33,13 @@ def create_app() -> FastAPI:
     fastapi_app = FastAPI(
         title="My Quantization Project",
         version="1.0.0",
+        lifespan=lifespan,
     )
 
     # 注册路由
     fastapi_app.include_router(api_router, prefix="/api/v1")
 
     fastapi_app.middleware("http")(response_middleware)
-
-    logger.info("Quantization app initialized")
 
     return fastapi_app
 

@@ -12,7 +12,6 @@ from uuid import UUID
 
 import akshare as ak
 
-from app.core.constant.stock_constant import MIN_DATE, MAX_DATE
 from app.core.enums.task_enum import FetchTaskStatus
 from app.integration.datasource.baostock import BaostockSource
 from app.integration.datasource.eastmoney import EastMoneySource
@@ -53,8 +52,6 @@ class StockService:
     # 增量更新股票列表
     def update_stock_basic_delta(self):
 
-        logger.info("增量拉取股票代码开始")
-
         df = ak.stock_info_a_code_name()
 
         df = df[~(
@@ -81,25 +78,34 @@ class StockService:
         if new_stock_basics:
             self.stock_basic_repo.save_all(new_stock_basics)
 
-        logger.info("增量拉取股票代码结束")
         return len(new_stock_basics)
 
-    def create_fetch_task(self, start_date: str = MIN_DATE, end_date: str = MAX_DATE) -> FetchTaskResponse:
+    def create_fetch_task(self, fetch_task_create_request: FetchTaskCreateRequest) -> FetchTaskResponse:
         exist_fetch_tasks = self.fetch_task_repo.get_by_status_and_date_range(
             FetchTaskStatus.RUNNING,
-            datetime.strptime(start_date, "%Y-%m-%d").date(),
-            datetime.strptime(end_date, "%Y-%m-%d").date())
+            datetime.strptime(fetch_task_create_request.start_date, "%Y-%m-%d").date(),
+            datetime.strptime(fetch_task_create_request.end_date, "%Y-%m-%d").date())
         if len(exist_fetch_tasks) >= 1:
             fetch_task = exist_fetch_tasks[0]
             resume = True
         else:
             fetch_task = FetchTask(
-                **FetchTaskCreateRequest(start_date=start_date, end_date=end_date).model_dump(mode="json"))
+                **fetch_task_create_request.model_dump(mode="json"),
+                total_stocks=0,
+                completed_stocks=0,
+                failed_stocks=0,
+                status=FetchTaskStatus.PENDING,
+                started_at=datetime.now()
+            )
             self.fetch_task_repo.create(fetch_task)
             resume = False
 
+        logger.info("celery task: fetch_all_stocks任务启动")
+
         fetch_all_stocks.delay(fetch_task.id, resume)
-        logger.info("拉取股票任务开始了")
+
+        logger.info("celery task: fetch_all_stocks任务启动")
+
         return FetchTaskResponse.model_validate(fetch_task)
 
     def update_fetch_task_by_id(self, task_id: UUID, **kwargs) -> None:

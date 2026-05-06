@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.dep.stock_dep import StockServiceDep
 from app.model.fetch_progress import FetchProgress
+from app.schema.fetch_task_schema import FetchTaskCreateRequest
 from app.task.progress_tracker import progress_tracker
 
 router = APIRouter()
@@ -23,8 +24,8 @@ def update_stock_basic_delta(stock_service: StockServiceDep):
 
 
 @router.post("/daily/all")
-def update_stock_daily_all(stock_service: StockServiceDep):
-    return stock_service.create_fetch_task()
+def update_stock_daily_all(fetch_task_create_request: FetchTaskCreateRequest, stock_service: StockServiceDep):
+    return stock_service.create_fetch_task(fetch_task_create_request)
 
 
 @router.get("/task-status/{task_id}")

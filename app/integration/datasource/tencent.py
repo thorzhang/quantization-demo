@@ -5,7 +5,6 @@
 @Author : zhanglei
 @File   : app.py
 """
-import logging
 from typing import Tuple
 
 import akshare as ak
@@ -14,8 +13,6 @@ from app.core.constant.stock_constant import MIN_DATE, MAX_DATE, SH_PREFIXES, SZ
 from app.core.enums.source_enum import StockSource
 from app.integration.datasource.base import BaseDataSource
 from app.schema.stock_daily_schema import RemoteStockDailyResponse
-
-logger = logging.getLogger(__name__)
 
 
 class TencentSource(BaseDataSource):
@@ -30,7 +27,6 @@ class TencentSource(BaseDataSource):
 
         df = ak.stock_zh_a_hist_tx(symbol=tx_code, start_date=processed_start_date, end_date=processed_end_date_1)
 
-        logger.info("tencent拉取股票（%s）历史结束", symbol)
         if df is None or df.empty:
             raise ValueError("empty data")
 

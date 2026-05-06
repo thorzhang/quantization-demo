@@ -5,18 +5,13 @@
 @Author : zhanglei
 @File   : app.py
 """
-import logging
 
 from celery import Celery
 from celery.schedules import crontab
+from celery.signals import setup_logging
 from kombu import Queue
 
-from app.core.log.logger import setup_logger
 from app.core.setting.config import settings
-
-setup_logger("celery")
-
-logger = logging.getLogger(__name__)
 
 # 创建 Celery 应用
 celery_app = Celery(
@@ -97,4 +92,12 @@ celery_app.conf.beat_schedule = {
 # 自动发现任务
 celery_app.autodiscover_tasks(["app.task"])
 
-logger.info("Celery app initialized")
+
+@setup_logging.connect
+def setup_celery_logging(*args, **kwargs):
+    import os
+    from app.core.log.logging import init_logging
+
+    service_name = os.getenv("SERVICE_NAME", "celery_worker")
+
+    init_logging(service_name)

@@ -5,7 +5,6 @@
 @Author : zhanglei
 @File   : app.py
 """
-import logging
 from typing import Tuple
 
 import akshare as ak
@@ -14,8 +13,6 @@ from app.core.constant.stock_constant import MIN_DATE, MAX_DATE
 from app.core.enums.source_enum import StockSource
 from app.integration.datasource.base import BaseDataSource
 from app.schema.stock_daily_schema import RemoteStockDailyResponse
-
-logger = logging.getLogger(__name__)
 
 
 class EastMoneySource(BaseDataSource):
@@ -27,8 +24,6 @@ class EastMoneySource(BaseDataSource):
             start_date=start_date,
             end_date=end_date
         )
-
-        logger.info("eastmoney拉取股票（%s）历史结束", symbol)
 
         if df is None or df.empty:
             raise ValueError("empty data")
