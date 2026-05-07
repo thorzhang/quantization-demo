@@ -43,6 +43,7 @@ class StockDailyRepository(BaseRepository[StockDaily]):
                 "pe_ttm": stmt.excluded.pe_ttm,
                 "pb_mrq": stmt.excluded.pb_mrq,
                 "is_st": stmt.excluded.is_st,
+                "source": stmt.excluded.source,
                 "updated_at": func.now()
             }
         )

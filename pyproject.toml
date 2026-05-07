@@ -11,6 +11,7 @@ dependencies = [
     "concurrent-log-handler>=0.9.29",
     "dependency-injector>=4.49.0",
     "fastapi>=0.135.3",
+    "func-timeout>=4.3.5",
     "gunicorn>=25.3.0",
     "langchain>=1.2.15",
     "langgraph>=1.1.6",

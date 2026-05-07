@@ -667,6 +667,12 @@ wheels = [
 ]
 
 [[package]]
+name = "func-timeout"
+version = "4.3.5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b3/0d/bf0567477f7281d9a3926c582bfef21bff7498fc0ffd3e9de21811896a0b/func_timeout-4.3.5.tar.gz", hash = "sha256:74cd3c428ec94f4edfba81f9b2f14904846d5ffccc27c92433b8b5939b5575dd", size = 44264, upload-time = "2019-08-19T21:32:07.43Z" }
+
+[[package]]
 name = "greenlet"
 version = "3.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1963,6 +1969,7 @@ dependencies = [
     { name = "concurrent-log-handler" },
     { name = "dependency-injector" },
     { name = "fastapi" },
+    { name = "func-timeout" },
     { name = "gunicorn" },
     { name = "langchain" },
     { name = "langgraph" },
@@ -1984,6 +1991,7 @@ requires-dist = [
     { name = "concurrent-log-handler", specifier = ">=0.9.29" },
     { name = "dependency-injector", specifier = ">=4.49.0" },
     { name = "fastapi", specifier = ">=0.135.3" },
+    { name = "func-timeout", specifier = ">=4.3.5" },
     { name = "gunicorn", specifier = ">=25.3.0" },
     { name = "langchain", specifier = ">=1.2.15" },
     { name = "langgraph", specifier = ">=1.1.6" },
