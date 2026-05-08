@@ -78,3 +78,17 @@ class StockDailyRepository(BaseRepository[StockDaily]):
             grouped[obj.symbol].append(obj)
 
         return grouped
+
+    def get_stock_daily_by_symbol(self,
+                                  symbol: str,
+                                  start_date: str,
+                                  end_date: str) -> List[StockDaily]:
+        stmt = (
+            select(StockDaily)
+            .where(StockDaily.symbol == symbol)
+            .where(StockDaily.date >= start_date)
+            .where(StockDaily.date <= end_date)
+            .order_by(StockDaily.date.asc())
+        )
+
+        return list(self.db.execute(stmt).scalars().all())

@@ -17,7 +17,16 @@ class StockCreateRequest(BaseModel):
 
 
 class StockRecommendRequest(BaseModel):
-    strategy_name: str = "ma_volume"
+    strategy_name: str = "conservative_trend"
+
+
+class StockBackTestRequest(BaseModel):
+    strategy_name: str = "conservative_trend"
+    start_date: str
+    end_date: str
+    hold_days: int
+    top_k: int
+    min_history: int
 
 
 class RemoteStockDailyResponse(BaseModel):

@@ -12,7 +12,7 @@ from app.db.database import get_db
 from app.dep.stock_dep import StockServiceDep
 from app.model.fetch_progress import FetchProgress
 from app.schema.fetch_task_schema import FetchTaskCreateRequest
-from app.schema.stock_daily_schema import StockRecommendRequest
+from app.schema.stock_daily_schema import StockRecommendRequest, StockBackTestRequest
 from app.task.progress_tracker import progress_tracker
 
 router = APIRouter()
@@ -32,6 +32,21 @@ def update_stock_daily_all(fetch_task_create_request: FetchTaskCreateRequest, st
 @router.post("/daily/recommend")
 def get_recommend_stocks(stock_recommend_request: StockRecommendRequest, stock_service: StockServiceDep):
     return stock_service.get_recommend_stocks(stock_recommend_request.strategy_name)
+
+
+@router.post("/backtest/run")
+def run_backtest(stock_back_test_request: StockBackTestRequest, stock_service: StockServiceDep
+                 ):
+    result = stock_service.run_signal_backtest(
+        strategy_name=stock_back_test_request.strategy_name,
+        start_date=stock_back_test_request.start_date,
+        end_date=stock_back_test_request.end_date,
+        hold_days=stock_back_test_request.hold_days,
+        top_k=stock_back_test_request.top_k,
+        min_history=stock_back_test_request.min_history,
+    )
+
+    return result
 
 
 @router.get("/task-status/{task_id}")

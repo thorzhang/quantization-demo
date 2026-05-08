@@ -6,16 +6,21 @@
 @File   : app.py
 """
 from abc import ABC, abstractmethod
-from typing import List
-
-from app.core.enums.signal import Signal
+from typing import List, Dict
 
 
 class BaseStrategy(ABC):
 
     @abstractmethod
-    def evaluate(self, data: List[dict]) -> Signal:
+    def evaluate(self, datas: List[dict]) -> Dict:
         """
         data: 已经整理好的K线数据（不能是ORM）
+        """
+        pass
+
+    @staticmethod
+    def reason() -> List[str]:
+        """
+        量化策略原因
         """
         pass

@@ -20,7 +20,7 @@ echo "======================================"
 # ==============================
 nohup uv run gunicorn app.main:app \
 -k uvicorn.workers.UvicornWorker \
--w 2 \
+-w 7 \
 -b 0.0.0.0:8000 \
 --timeout 60 \
 -c app/gunicorn_conf.py \
@@ -33,7 +33,7 @@ echo "app started"
 # ==============================
 nohup env SERVICE_NAME=celery_worker \
 uv run celery -A app.celery_app:celery_app worker \
--l info -c 2 \
+-l info -c 6 \
 > $LOG_DIR/celery_worker.out 2>&1 &
 
 echo "Celery Worker started"

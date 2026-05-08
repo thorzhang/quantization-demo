@@ -224,13 +224,13 @@ app/
 
 * 数据采集 + 入库
 
-### Step 2（当前阶段）
+### Step 2（已完成，后续还需要生成各种策略）
 
 * 策略模块（Strategy Service）
     * MA5 / MA20
     * 输出：BUY / SELL / HOLD
 
-### Step 3
+### Step 3（已完成）
 
 * 推荐接口
 
