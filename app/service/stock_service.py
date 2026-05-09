@@ -14,6 +14,7 @@ from uuid import UUID
 
 import akshare as ak
 
+from app.core.enums.signal import Signal
 from app.core.enums.task_enum import FetchTaskStatus
 from app.integration.datasource.baostock import BaostockSource
 from app.model.fetch_progress import FetchProgress
@@ -195,6 +196,9 @@ class StockService:
                     "close": d.close,
                     "volume": d.volume,
                     "pct_chg": d.pct_chg,
+                    "pe_ttm": d.pe_ttm,
+                    "pb_mrq": d.pb_mrq,
+                    "turnover": d.turnover,
                 }
                 for d in kline
             ]
@@ -216,23 +220,27 @@ class StockService:
             strategy_name: str,
             start_date: str,
             end_date: str,
-            hold_days: int = 5,
             top_k: int = 10,
             min_history: int = 30,
+            take_profit: float = 0.10,
+            stop_loss: float = -0.05,
+            max_hold_days: int = 20,
     ) -> Dict:
         """
-        如下假设：
-        1. 每支股票都买相同的数量，持有hold_days天
-        2. 每天推荐得分最高的10支股票，但是保证股票池中只存在10支股票，不够了补齐
-        :param strategy_name:
+        假设：
+        1. 所有股票价值一样
+        2. 始终保留股票池中有top_k支股票
+        3. 以当日收盘价卖出，限号策略下日收盘价卖出，止盈止损的话当日收盘价卖出
+        :param strategy_name: 策略名称
         :param start_date:
         :param end_date:
-        :param hold_days: 持有天数
-        :param top_k: 得分最高的top_k支股票
-        :param min_history:
+        :param top_k: 股票池中股票数量
+        :param min_history: 最少要有30天历史
+        :param take_profit: 止盈线
+        :param stop_loss: 止损线
+        :param max_hold_days: 最长持有日期
         :return:
         """
-
         strategy = StrategySelector.get_strategy(strategy_name)
 
         symbols = self.stock_basic_repo.list_symbols()
@@ -251,16 +259,19 @@ class StockService:
                 end_date
             )
 
-            if len(datas) < min_history + hold_days:
+            if len(datas) < min_history + 2:
                 continue
 
             stock_data_map[symbol] = datas
 
         # =========================
-        # 收集每日信号
+        # 收集每日买入信号
         # =========================
 
-        signals_by_date = defaultdict(list)
+        buy_signals_by_date = defaultdict(list)
+
+        # 新增：收集每日卖出信号
+        sell_signals_by_date = defaultdict(list)
 
         for symbol, datas in stock_data_map.items():
 
@@ -276,83 +287,180 @@ class StockService:
                 for d in datas
             ]
 
-            for i in range(min_history, len(datas) - hold_days):
+            # 因为买入是信号日的下一天，所有-1已保留买入日，防止越界
+            for i in range(min_history, len(datas) - 2):
 
-                # =====================
-                # 使用历史 window
-                # =====================
-
-                window = daily_dicts[i - min_history: i + 1]
+                window = daily_dicts[i - min_history:i + 1]
 
                 result = strategy.evaluate(window)
 
-                if result["signal"] != "BUY":
-                    continue
+                signal_date = datas[i].date
 
-                trade_date = datas[i].date
+                # 处理买入信号
+                if result["signal"] == Signal.BUY:
+                    buy_signals_by_date[signal_date].append({
+                        "symbol": symbol,
+                        "score": result["score"],
+                        "buy_index": i + 1,
+                        "signal_date": signal_date,
+                    })
 
-                signals_by_date[trade_date].append({
-                    "symbol": symbol,
-                    "score": result["score"],
-                    "buy_index": i,
-                })
+                # 新增：处理卖出信号
+                elif result["signal"] == Signal.SELL:
+                    sell_signals_by_date[signal_date].append({
+                        "symbol": symbol,
+                        "sell_index": i + 1,
+                        "signal_date": signal_date,
+                    })
 
         # =========================
         # 日期排序
         # =========================
 
-        sorted_dates = sorted(signals_by_date.keys())
+        all_dates = sorted(set(buy_signals_by_date.keys()) | set(sell_signals_by_date.keys()))
 
         # =========================
         # 当前持仓
         # =========================
 
         current_positions = {}
-        # symbol -> sell_date
 
         trades = []
 
-        for trade_date in sorted_dates:
+        # =========================
+        # 主循环（日级）
+        # =========================
+
+        for trade_date in all_dates:
 
             # =====================
-            # 清理已卖出持仓
+            # 1. 策略主动卖出信号检查
             # =====================
 
-            expired_symbols = []
+            sell_signals = sell_signals_by_date.get(trade_date, [])
 
-            for symbol, sell_date in current_positions.items():
+            sell_symbols = []
 
-                if trade_date >= sell_date:
-                    expired_symbols.append(symbol)
+            for sell_signal in sell_signals:
+                symbol = sell_signal["symbol"]
 
-            for symbol in expired_symbols:
+                if symbol not in current_positions:
+                    continue
+
+                position = current_positions[symbol]
+
+                datas = stock_data_map[symbol]
+
+                sell_index = sell_signal["sell_index"]
+
+                if sell_index >= len(datas):
+                    continue
+
+                sell_daily = datas[sell_index]
+
+                sell_price = float(sell_daily.close)
+
+                buy_price = position["buy_price"]
+
+                ret = (sell_price - buy_price) / buy_price
+
+                hold_days = sell_index - position["buy_index"]
+
+                trades.append({
+                    "symbol": symbol,
+                    "score": position["score"],
+                    "buy_date": position["buy_date"],
+                    "sell_date": trade_date,
+                    "buy_price": buy_price,
+                    "sell_price": sell_price,
+                    "hold_days": hold_days,
+                    "return": ret,
+                    "exit_reason": "STRATEGY_SELL",  # 新增退出原因
+                })
+
+                sell_symbols.append(symbol)
+
+            # 删除策略卖出的持仓
+            for symbol in sell_symbols:
                 del current_positions[symbol]
 
             # =====================
-            # 获取当天信号
+            # 2. 检查止盈止损及最大持有天数
             # =====================
 
-            signals = signals_by_date[trade_date]
+            exit_symbols = []
 
-            # score 倒序
-            signals.sort(
-                key=lambda x: x["score"],
-                reverse=True
-            )
+            for symbol, position in current_positions.items():
 
-            # 当前还能买几个
+                datas = stock_data_map[symbol]
+
+                buy_index = position["buy_index"]
+
+                current_index = None
+
+                for idx in range(buy_index + 1, len(datas)):
+
+                    if datas[idx].date == trade_date:
+                        current_index = idx
+                        break
+
+                if current_index is None:
+                    continue
+
+                buy_price = position["buy_price"]
+
+                current_price = float(datas[current_index].close)
+
+                ret = (current_price - buy_price) / buy_price
+
+                hold_days = current_index - buy_index
+
+                exit_reason = None
+
+                if ret >= take_profit:
+                    exit_reason = "TAKE_PROFIT"
+                elif ret <= stop_loss:
+                    exit_reason = "STOP_LOSS"
+                elif hold_days >= max_hold_days:
+                    exit_reason = "MAX_HOLD_DAYS"
+
+                if exit_reason:
+                    trades.append({
+                        "symbol": symbol,
+                        "score": position["score"],
+                        "buy_date": position["buy_date"],
+                        "sell_date": trade_date,
+                        "buy_price": buy_price,
+                        "sell_price": current_price,
+                        "hold_days": hold_days,
+                        "return": ret,
+                        "exit_reason": exit_reason,
+                    })
+
+                    exit_symbols.append(symbol)
+
+            for symbol in exit_symbols:
+                del current_positions[symbol]
+
+            # =====================
+            # 3. 计算剩余仓位并买入
+            # =====================
+
             available_slots = top_k - len(current_positions)
 
             if available_slots <= 0:
                 continue
 
+            buy_signals = buy_signals_by_date.get(trade_date, [])
+
+            buy_signals.sort(key=lambda x: x["score"], reverse=True)
+
             selected = []
 
-            for signal in signals:
+            for signal in buy_signals:
 
                 symbol = signal["symbol"]
 
-                # 已持仓则跳过
                 if symbol in current_positions:
                     continue
 
@@ -361,44 +469,26 @@ class StockService:
                 if len(selected) >= available_slots:
                     break
 
-            # =====================
-            # 执行买入
-            # =====================
-
             for signal in selected:
                 symbol = signal["symbol"]
-                buy_index = signal["buy_index"]
 
                 datas = stock_data_map[symbol]
 
+                buy_index = signal["buy_index"]
+
+                if buy_index >= len(datas):
+                    continue
+
                 buy_daily = datas[buy_index]
-                sell_daily = datas[buy_index + hold_days]
 
                 buy_price = float(buy_daily.close)
-                sell_price = float(sell_daily.close)
 
-                ret = (sell_price - buy_price) / buy_price
-
-                trades.append({
-                    "symbol": symbol,
-
-                    "score": signal["score"],
-
-                    "trade_date": trade_date,
-
+                current_positions[symbol] = {
                     "buy_date": buy_daily.date,
-                    "sell_date": sell_daily.date,
-
                     "buy_price": buy_price,
-                    "sell_price": sell_price,
-
-                    "hold_days": hold_days,
-
-                    "return": ret,
-                })
-
-                # 加入当前持仓
-                current_positions[symbol] = sell_daily.date
+                    "buy_index": buy_index,
+                    "score": signal["score"],
+                }
 
         return self._calc_signal_stats(trades)
 
@@ -430,6 +520,21 @@ class StockService:
 
         max_gain = max(returns)
         max_loss = min(returns)
+
+        avg_hold_days = mean([t["hold_days"] for t in trades])
+
+        # =========================
+        # 退出原因统计
+        # =========================
+
+        exit_reason_stats = defaultdict(int)
+
+        for trade in trades:
+            exit_reason_stats[trade["exit_reason"]] += 1
+
+        # =========================
+        # 收益分布
+        # =========================
 
         distribution = {
             "gt_10": len([r for r in returns if r > 0.10]),
@@ -492,6 +597,10 @@ class StockService:
 
             "max_gain": max_gain,
             "max_loss": max_loss,
+
+            "avg_hold_days": avg_hold_days,
+
+            "exit_reason_stats": dict(exit_reason_stats),
 
             "distribution": distribution,
 

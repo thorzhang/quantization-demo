@@ -17,25 +17,21 @@ class ConservativeValueTrendStrategy(BaseStrategy):
     @staticmethod
     def reason() -> List[str]:
         return [
-            "MA5高于MA20，股票处于中短期上升趋势",
+            "MA5高于MA20且连续保持3天以上，确认中短期上升趋势",
             "最近10日累计涨幅不超过15%，未出现明显追高风险",
-            "最近10日涨跌幅标准差较低，股价波动相对稳定",
-            "最近20日最大回撤不超过15%，下跌风险可控",
-            "最近5日平均换手率介于1%~15%之间，流动性正常且未出现明显游资炒作",
-            "当前成交量未明显低于5日平均成交量，市场关注度正常",
-            "PE(TTM)小于60，估值未明显高估",
-            "PE(TTM)处于较低区间，具备一定估值安全性",
+            "最近10日波动率不超过8%，避免异常波动股票",
+            "最近20日最大回撤不超过12%，下跌风险可控",
+            "最近5日平均换手率不低于0.5%，流动性正常",
+            "当前成交量不低于5日均量的70%，市场关注度正常",
+            "PE(TTM)大于0且小于60，排除亏损及明显高估股票",
             "PB(MRQ)小于8，市净率未明显偏高",
-            "PB(MRQ)处于较低区间，资产估值相对合理",
-            "MA5相对MA20保持温和上行，趋势较稳定",
-            "股价近期未出现暴涨，符合稳健型趋势特征",
-            "成交量保持温和放量，资金参与度较健康",
-            "整体趋势、估值、波动率与回撤指标均符合稳健低风险策略要求"
+            "趋势权重45%，确保策略核心为趋势跟踪",
+            "整体趋势、风控、估值条件符合稳健型趋势策略要求"
         ]
 
     def evaluate(self, datas: List[dict]) -> Dict:
 
-        if len(datas) < 20:
+        if len(datas) < 23:
             return {
                 "signal": Signal.HOLD,
                 "score": 0.0
@@ -63,150 +59,160 @@ class ConservativeValueTrendStrategy(BaseStrategy):
         ]
 
         # =========================
-        # 1. MA趋势
+        # 计算各项指标
         # =========================
 
         ma5 = sum(closes[-5:]) / 5
         ma20 = sum(closes[-20:]) / 20
 
-        trend_strength = (ma5 - ma20) / (ma20 + 1e-6)
+        # 简化版：检查最近3天（包含今天）是否连续 MA5 > MA20
+        consecutive_days = 0
+        for i in range(-2, 0):  # -2, -1, 0 共3天（大前天、昨天、今天）
+            # 计算当天的 MA5 和 MA20
+            day_ma5 = sum(closes[i - 5:i]) / 5 if i - 5 >= -len(closes) else None
+            day_ma20 = sum(closes[i - 20:i]) / 20 if i - 20 >= -len(closes) else None
 
-        if ma5 <= ma20:
+            if day_ma5 and day_ma20 and day_ma5 > day_ma20:
+                consecutive_days += 1
+            else:
+                consecutive_days = 0
+
+        # 趋势破坏条件：今天不在多头 或 最近2天有任意一天不满足
+        trend_broken = ma5 <= ma20 or consecutive_days < 2
+
+        # 趋势强度评分
+        trend_strength = (ma5 - ma20) / (ma20 + 1e-6)
+        trend_score = min(max(trend_strength * 15, 0.3), 1)
+
+        # 10日涨幅
+        recent_10d_return = sum(pct_chgs[-10:])
+
+        # 波动率
+        volatility = pstdev(pct_chgs[-10:]) if len(pct_chgs) >= 10 else 0
+
+        # 20日最大回撤
+        max_price = max(closes[-20:])
+        min_price = min(closes[-20:])
+        max_drawdown = (max_price - min_price) / (max_price + 1e-6)
+
+        # 换手率
+        avg_turnover = sum(turnovers[-5:]) / 5 if turnovers[-5:] else 0
+
+        # 成交量比例
+        vol_now = volumes[-1]
+        vol_avg5 = sum(volumes[-5:]) / 5
+        volume_ratio = vol_now / (vol_avg5 + 1e-6)
+
+        # PE
+        pe_valid = pe_list and pe_list[-1] > 0
+        pe = pe_list[-1] if pe_valid else 0
+
+        # PB
+        pb_valid = pb_list and pb_list[-1] > 0
+        pb = pb_list[-1] if pb_valid else 0
+
+        # =========================
+        # 卖出条件检测（SELL）
+        # =========================
+
+        sell_reasons = []
+
+        if trend_broken:
+            sell_reasons.append("trend_broken")
+
+        if recent_10d_return > 20:
+            sell_reasons.append("overbought")
+
+        if volatility > 10:
+            sell_reasons.append("high_volatility")
+
+        if max_drawdown > 0.15:
+            sell_reasons.append("large_drawdown")
+
+        if 0 < avg_turnover < 0.3:
+            sell_reasons.append("low_liquidity")
+
+        if volume_ratio < 0.5:
+            sell_reasons.append("volume_shrink")
+
+        if pe <= 0 or pe >= 80:
+            sell_reasons.append("pe_deteriorated")
+
+        if pb >= 10:
+            sell_reasons.append("pb_too_high")
+
+        if sell_reasons:
+            return {
+                "signal": Signal.SELL,
+                "score": 0.0
+            }
+
+        # =========================
+        # 买入条件检测（BUY）
+        # =========================
+
+        buy_reasons = []
+
+        if not trend_broken:
+            buy_reasons.append("trend_up")
+
+        if recent_10d_return <= 15:
+            buy_reasons.append("moderate_return")
+
+        if volatility <= 8:
+            buy_reasons.append("normal_volatility")
+
+        if max_drawdown <= 0.12:
+            buy_reasons.append("drawdown_controlled")
+
+        if avg_turnover >= 0.5:
+            buy_reasons.append("normal_turnover")
+
+        if volume_ratio >= 0.7:
+            buy_reasons.append("normal_volume")
+
+        if 0 < pe < 60:
+            buy_reasons.append("pe_normal")
+
+        if pb < 8:
+            buy_reasons.append("pb_normal")
+
+        # 必须满足所有8个买入条件
+        if len(buy_reasons) < 8:
             return {
                 "signal": Signal.HOLD,
                 "score": 0.0
             }
 
-        # 趋势评分（0~1）
-        trend_score = min(max(trend_strength * 20, 0), 1)
-
         # =========================
-        # 2. 10日涨幅
+        # 综合评分
         # =========================
 
-        recent_10d_return = sum(pct_chgs[-10:])
-
-        # 超过15%开始扣分
-        pullback_score = max(
-            0.0,
-            1 - recent_10d_return / 15
-        )
-
-        # =========================
-        # 3. 波动率
-        # =========================
-
-        volatility = pstdev(pct_chgs[-10:])
-
-        # 波动越低越好
-        volatility_score = max(
-            0.0,
-            1 - volatility / 5
-        )
-
-        # =========================
-        # 4. 最大回撤
-        # =========================
-
-        recent_high = max(closes[-20:])
-        current_price = closes[-1]
-
-        max_drawdown = (
-                (recent_high - current_price)
-                / (recent_high + 1e-6)
-        )
-
-        # 回撤越小越好
-        drawdown_score = max(
-            0.0,
-            1 - max_drawdown / 0.15
-        )
-
-        # =========================
-        # 5. 换手率
-        # =========================
-
-        avg_turnover = sum(turnovers[-5:]) / 5
-
-        if avg_turnover < 1:
-            turnover_score = 0.2
-        elif avg_turnover <= 8:
-            turnover_score = 1.0
-        elif avg_turnover <= 15:
-            turnover_score = 0.6
+        if pe < 15:
+            pe_score = 1.0
+        elif pe < 30:
+            pe_score = 0.8
+        elif pe < 45:
+            pe_score = 0.5
         else:
-            turnover_score = 0.1
+            pe_score = 0.3
 
-        # =========================
-        # 6. 成交量
-        # =========================
-
-        vol_now = volumes[-1]
-        vol_avg5 = sum(volumes[-5:]) / 5
-
-        volume_ratio = vol_now / (vol_avg5 + 1e-6)
-
-        # 温和放量最佳
-        if volume_ratio < 0.8:
-            volume_score = 0.2
-        elif volume_ratio <= 1.5:
-            volume_score = 1.0
-        elif volume_ratio <= 2:
-            volume_score = 0.7
+        if pb < 2:
+            pb_score = 1.0
+        elif pb < 4:
+            pb_score = 0.8
         else:
-            volume_score = 0.3
-
-        # =========================
-        # 7. PE估值
-        # =========================
-
-        pe_score = 0.5
-
-        if pe_list:
-            pe = pe_list[-1]
-
-            if pe <= 0:
-                pe_score = 0.3
-            elif pe < 25:
-                pe_score = 1.0
-            elif pe < 40:
-                pe_score = 0.7
-            elif pe < 60:
-                pe_score = 0.4
-            else:
-                pe_score = 0.1
-
-        # =========================
-        # 8. PB估值
-        # =========================
-
-        pb_score = 0.5
-
-        if pb_list:
-            pb = pb_list[-1]
-
-            if pb < 2:
-                pb_score = 1.0
-            elif pb < 4:
-                pb_score = 0.7
-            elif pb < 8:
-                pb_score = 0.4
-            else:
-                pb_score = 0.1
-
-        # =========================
-        # 9. 综合评分
-        # =========================
+            pb_score = 0.5
 
         total_score = (
-                trend_score * 0.25
-                + volatility_score * 0.20
-                + drawdown_score * 0.20
-                + pe_score * 0.10
-                + pb_score * 0.10
-                + turnover_score * 0.05
-                + volume_score * 0.05
-                + pullback_score * 0.05
+                trend_score * 0.45
+                + pe_score * 0.15
+                + pb_score * 0.15
+                + 1.0 * 0.10
+                + 1.0 * 0.05
+                + 1.0 * 0.05
+                + 1.0 * 0.03
+                + 1.0 * 0.02
         )
 
         final_score = total_score * 100

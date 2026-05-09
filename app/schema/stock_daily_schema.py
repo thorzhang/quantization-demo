@@ -24,9 +24,11 @@ class StockBackTestRequest(BaseModel):
     strategy_name: str = "conservative_trend"
     start_date: str
     end_date: str
-    hold_days: int
     top_k: int
     min_history: int
+    take_profit: float
+    stop_loss: float
+    max_hold_days: int
 
 
 class RemoteStockDailyResponse(BaseModel):

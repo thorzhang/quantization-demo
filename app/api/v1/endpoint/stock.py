@@ -35,15 +35,16 @@ def get_recommend_stocks(stock_recommend_request: StockRecommendRequest, stock_s
 
 
 @router.post("/backtest/run")
-def run_backtest(stock_back_test_request: StockBackTestRequest, stock_service: StockServiceDep
-                 ):
+def run_backtest(stock_back_test_request: StockBackTestRequest, stock_service: StockServiceDep):
     result = stock_service.run_signal_backtest(
         strategy_name=stock_back_test_request.strategy_name,
         start_date=stock_back_test_request.start_date,
         end_date=stock_back_test_request.end_date,
-        hold_days=stock_back_test_request.hold_days,
         top_k=stock_back_test_request.top_k,
         min_history=stock_back_test_request.min_history,
+        take_profit=stock_back_test_request.take_profit,
+        stop_loss=stock_back_test_request.stop_loss,
+        max_hold_days=stock_back_test_request.max_hold_days,
     )
 
     return result
