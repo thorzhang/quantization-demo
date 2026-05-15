@@ -6,17 +6,14 @@
 @File   : app.py
 """
 from app.strategy.base import BaseStrategy
-from app.strategy.conservative_trend_strategy import ConservativeValueTrendStrategy
-from app.strategy.ma_volume_strategy import MAVolumeStrategy
+from app.strategy.robust_trend_strategy import RobustTrendStrategy
 
 
 class StrategySelector:
 
     @staticmethod
     def get_strategy(name: str) -> BaseStrategy:
-        if name == "ma_volume":
-            return MAVolumeStrategy()
-        elif name == "conservative_trend":
-            return ConservativeValueTrendStrategy()
+        if name == "robust_trend":
+            return RobustTrendStrategy()
 
         raise ValueError(f"Unknown strategy: {name}")

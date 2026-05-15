@@ -21,14 +21,20 @@ class StockRecommendRequest(BaseModel):
 
 
 class StockBackTestRequest(BaseModel):
-    strategy_name: str = "conservative_trend"
+    strategy_name: str = "robust_trend"
     start_date: str
     end_date: str
-    top_k: int
-    min_history: int
-    take_profit: float
-    stop_loss: float
-    max_hold_days: int
+    top_k: int = 10
+    min_history: int = 60
+    take_profit: float = 0.15
+    stop_loss: float = -0.07
+    max_hold_days: int = 30
+    init_position_pct: float = 0.05
+    max_single_position_pct: float = 0.15
+    max_total_positions: int = 20
+    score_threshold: int = 50
+    market_width_sample_size: int = 500
+    market_width_frequency: int = 5
 
 
 class RemoteStockDailyResponse(BaseModel):

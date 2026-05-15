@@ -31,7 +31,7 @@ def update_stock_daily_all(fetch_task_create_request: FetchTaskCreateRequest, st
 
 @router.post("/daily/recommend")
 def get_recommend_stocks(stock_recommend_request: StockRecommendRequest, stock_service: StockServiceDep):
-    return stock_service.get_recommend_stocks(stock_recommend_request.strategy_name)
+    return stock_service.get_daily_trading_signal(stock_recommend_request.strategy_name)
 
 
 @router.post("/backtest/run")
@@ -45,6 +45,9 @@ def run_backtest(stock_back_test_request: StockBackTestRequest, stock_service: S
         take_profit=stock_back_test_request.take_profit,
         stop_loss=stock_back_test_request.stop_loss,
         max_hold_days=stock_back_test_request.max_hold_days,
+        max_single_position_pct=stock_back_test_request.max_single_position_pct,
+        market_width_sample_size=stock_back_test_request.market_width_sample_size,
+        market_width_frequency=stock_back_test_request.market_width_frequency
     )
 
     return result
