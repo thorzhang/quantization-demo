@@ -7,6 +7,12 @@
 """
 from app.core.log.logging import init_logging
 
+# 设置超时时间为 0，禁用超时限制
+timeout = 21600
+
+# 优雅超时保留默认或适当设置
+graceful_timeout = 10800
+
 
 def on_starting(server):
     # master 进程

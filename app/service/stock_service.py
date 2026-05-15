@@ -403,12 +403,13 @@ class StockService:
             top_k: int = 10,
             min_history: int = 60,
             take_profit: float = 0.15,
-            stop_loss: float = -0.07,
-            max_hold_days: int = 30,
-            init_position_pct: float = 0.05,  # 【修改点1】新增：初始买入仓位
-            max_single_position_pct: float = 0.15,  # 单只股票最大仓位（最终可加仓达到）
-            max_total_positions: int = 20,  # 【修改点2】新增：最大持仓数量
-            score_threshold: int = 50,  # 【修改点3】新增：买入最低评分
+            stop_loss: float = -0.10,
+            min_hold_days: int = 5,
+            max_hold_days: int = 60,
+            init_position_pct: float = 0.05,
+            max_single_position_pct: float = 0.15,
+            max_total_positions: int = 15,
+            score_threshold: int = 70,
             market_width_sample_size: int = 500,
             market_width_frequency: int = 5,
     ) -> Dict:
@@ -635,39 +636,49 @@ class StockService:
 
             # 检查持仓卖出信号
             for symbol, pos in current_positions.items():
+                hold_days = date_to_index[trade_date] - date_to_index[pos["buy_date"]]
+
+                # [MODIFIED] 计算当前收益率用于止盈止损
+                df = indicators_map.get(symbol)
+                if df is None or trade_date not in df.index:
+                    continue
+                r = df.loc[trade_date]
+                current_price = float(r['close'])
+                ret = (current_price - pos["buy_price"]) / pos["buy_price"]
+
+                # [MODIFIED] 止盈止损始终有效（不受最小持有期限制）
+                if ret >= take_profit:
+                    pending_sell_orders.append({
+                        "symbol": symbol, "exit_reason": "TAKE_PROFIT", "exec_date": next_date
+                    })
+                    continue
+                if ret <= stop_loss:
+                    pending_sell_orders.append({
+                        "symbol": symbol, "exit_reason": "STOP_LOSS", "exec_date": next_date
+                    })
+                    continue
+
+                # [MODIFIED] 最大持有天数检查
+                if hold_days >= max_hold_days:
+                    pending_sell_orders.append({
+                        "symbol": symbol, "exit_reason": "MAX_HOLD_DAYS", "exec_date": next_date
+                    })
+                    continue
+
+                # [MODIFIED] 未达到最小持有期，忽略策略的SELL信号
+                if hold_days < min_hold_days:
+                    # 持有期不足时，不检查策略SELL信号，继续持有
+                    continue
+
+                # [MODIFIED] 达到最小持有期后，正常检查策略卖出信号
                 info = daily_scores.get(trade_date, {}).get(symbol)
                 if not info:
                     continue
-
                 if info["signal"] == Signal.SELL:
                     pending_sell_orders.append({
                         "symbol": symbol,
                         "exit_reason": "STRATEGY_SELL",
                         "exec_date": next_date
-                    })
-                    continue
-
-                # 止盈止损
-                df = indicators_map.get(symbol)
-                if df is None or trade_date not in df.index:
-                    continue
-
-                r = df.loc[trade_date]
-                current_price = float(r['close'])
-                ret = (current_price - pos["buy_price"]) / pos["buy_price"]
-                hold_days = date_to_index[trade_date] - date_to_index[pos["buy_date"]]
-
-                if ret >= take_profit:
-                    pending_sell_orders.append({
-                        "symbol": symbol, "exit_reason": "TAKE_PROFIT", "exec_date": next_date
-                    })
-                elif ret <= stop_loss:
-                    pending_sell_orders.append({
-                        "symbol": symbol, "exit_reason": "STOP_LOSS", "exec_date": next_date
-                    })
-                elif hold_days >= max_hold_days:
-                    pending_sell_orders.append({
-                        "symbol": symbol, "exit_reason": "MAX_HOLD_DAYS", "exec_date": next_date
                     })
 
             # 【修改点6】产生买入订单 - 动态权重分配（核心修改）

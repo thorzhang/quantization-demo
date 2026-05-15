@@ -25,14 +25,15 @@ class StockBackTestRequest(BaseModel):
     start_date: str
     end_date: str
     top_k: int = 10
-    min_history: int = 60
-    take_profit: float = 0.15
-    stop_loss: float = -0.07
-    max_hold_days: int = 30
+    min_history: int = 120
+    take_profit: float = 0.20
+    stop_loss: float = -0.10
+    min_hold_days: int = 5
+    max_hold_days: int = 60
     init_position_pct: float = 0.05
     max_single_position_pct: float = 0.15
-    max_total_positions: int = 20
-    score_threshold: int = 50
+    max_total_positions: int = 15
+    score_threshold: int = 70
     market_width_sample_size: int = 500
     market_width_frequency: int = 5
 
