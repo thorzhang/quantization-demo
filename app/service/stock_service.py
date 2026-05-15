@@ -422,7 +422,7 @@ class StockService:
         # 1. 加载原始数据
         # =========================
         stock_data_map = {}
-        for symbol in symbols[0:2]:
+        for symbol in symbols:
             datas = self.stock_daily_repo.get_stock_daily_by_symbol(
                 symbol, start_date, end_date
             )
