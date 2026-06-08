@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
+from app.dep.backtest_dep import SignalBacktestServiceDep
 from app.dep.stock_dep import StockServiceDep
 from app.model.fetch_progress import FetchProgress
 from app.schema.fetch_task_schema import FetchTaskCreateRequest
@@ -30,8 +31,19 @@ def update_stock_daily_all(fetch_task_create_request: FetchTaskCreateRequest, st
 
 
 @router.post("/daily/recommend")
-def get_recommend_stocks(stock_recommend_request: StockRecommendRequest, stock_service: StockServiceDep):
-    return stock_service.get_daily_trading_signal(stock_recommend_request.strategy_name)
+def get_recommend_stocks(stock_recommend_request: StockRecommendRequest,
+                         signal_backtest_service: SignalBacktestServiceDep):
+    return signal_backtest_service.get_daily_trading_signal(
+        strategy_name=stock_recommend_request.strategy_name,
+        current_positions=stock_recommend_request.current_positions,
+        cash=stock_recommend_request.cash,
+        max_positions=stock_recommend_request.max_positions,
+        stop_loss=stock_recommend_request.stop_loss,
+        take_profit=stock_recommend_request.take_profit,
+        rebalance_days=stock_recommend_request.rebalance_days,
+        min_score=stock_recommend_request.min_score,
+        transaction_cost=stock_recommend_request.transaction_cost,
+    )
 
 
 @router.post("/backtest/run")
@@ -48,6 +60,20 @@ def run_backtest(stock_back_test_request: StockBackTestRequest, stock_service: S
         max_single_position_pct=stock_back_test_request.max_single_position_pct,
         market_width_sample_size=stock_back_test_request.market_width_sample_size,
         market_width_frequency=stock_back_test_request.market_width_frequency
+    )
+
+    return result
+
+
+@router.post("/backtest/signal/run")
+def run_backtest(request: StockBackTestRequest, signal_backtest_service: SignalBacktestServiceDep):
+    result = signal_backtest_service.run_backtest(
+        strategy_name=request.strategy_name,
+        start_date=request.start_date,
+        end_date=request.end_date,
+        top_k=request.top_k,
+        init_cash=request.init_cash,
+        min_history=request.min_history,
     )
 
     return result

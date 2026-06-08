@@ -252,7 +252,6 @@ def backtest(df, initial_capital=1000000, transaction_cost=0.001,
              max_positions=10, stop_loss=-0.06, take_profit=0.10,
              rebalance_days=5):
     """
-    修正版回测引擎
     逻辑：T日收盘生成信号 → T+1日开盘买入
     """
     trading_days = sorted(df['date'].unique())
@@ -353,7 +352,7 @@ def backtest(df, initial_capital=1000000, transaction_cost=0.001,
                 to_sell_rebalance = current_codes - new_codes
 
                 for code in to_sell_rebalance:
-                    if code in today_close:
+                    if code in today_open:
                         pos = positions[code]
                         sell_price = today_open[code]
                         sell_value = pos['shares'] * sell_price

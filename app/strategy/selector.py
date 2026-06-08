@@ -5,15 +5,16 @@
 @Author : zhanglei
 @File   : app.py
 """
+
 from app.strategy.base import BaseStrategy
-from app.strategy.robust_trend_strategy import RobustTrendStrategy
+from app.strategy.momentum_strategy import MomentumStrategy
 
 
 class StrategySelector:
 
     @staticmethod
     def get_strategy(name: str) -> BaseStrategy:
-        if name == "robust_trend":
-            return RobustTrendStrategy()
+        if name == "momentum":
+            return MomentumStrategy()
 
         raise ValueError(f"Unknown strategy: {name}")

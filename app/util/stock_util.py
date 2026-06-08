@@ -1,49 +1,16 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
-量化策略 v9.3 - 幻方降维版（修正信号时序）
-核心修正：
-1. 移除市场择时中多余的 shift(1)
-2. 明确信号和执行的时序关系
+@Time   : 2026/1/6   
+@Author : zhanglei
+@File   : app.py
 """
-
-import glob
 import warnings
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 
 warnings.filterwarnings('ignore')
-
-
-# =========================================================
-# 1. 数据加载与预处理
-# =========================================================
-def load_multiple_files(data_path):
-    if isinstance(data_path, str):
-        if Path(data_path).is_dir():
-            file_list = list(Path(data_path).glob("*.parquet"))
-            print(f"找到 {len(file_list)} 个 parquet 文件")
-        elif '*' in data_path or '?' in data_path:
-            file_list = glob.glob(data_path)
-            print(f"找到 {len(file_list)} 个 parquet 文件")
-        elif Path(data_path).exists():
-            file_list = [data_path]
-        else:
-            raise FileNotFoundError(f"找不到路径: {data_path}")
-    elif isinstance(data_path, list):
-        file_list = data_path
-    else:
-        raise ValueError("data_path 必须是路径或列表")
-
-    df_list = []
-    for file in tqdm(file_list, desc="加载文件"):
-        df_list.append(pd.read_parquet(file))
-
-    print("正在合并数据...")
-    df = pd.concat(df_list, ignore_index=True)
-    print(f"合并完成: {len(df):,} 行")
-    return df
 
 
 def preprocess_data(df, start_date=None, end_date=None):
@@ -544,69 +511,3 @@ def evaluate(results, trades, initial_capital=1000000):
     print("=" * 80)
     return {'total_return': total_return, 'annual_return': annual_return, 'max_drawdown': max_drawdown,
             'sharpe': sharpe}
-
-
-# =========================================================
-# 7. 主程序
-# =========================================================
-def main():
-    DATA_PATH = "./"  # 修改为您的数据路径
-    START_DATE = "2018-01-01"
-    END_DATE = "2026-12-31"
-    INITIAL_CAPITAL = 1000000
-
-    # 策略参数
-    MAX_POSITIONS = 8
-    STOP_LOSS = -0.05
-    TAKE_PROFIT = 0.08
-    TRANSACTION_COST = 0.0005
-    REBALANCE_DAYS = 10
-    MIN_SCORE = 0.5
-
-    print("=" * 80)
-    print("量化策略 v9.3 - 时序修正版")
-    print("=" * 80)
-    print("时序逻辑:")
-    print("  T日: 计算因子 → 市场择时 → 生成信号")
-    print("  T+1日: 开盘执行买入")
-    print(f"\n【策略参数】")
-    print(f"最大持仓: {MAX_POSITIONS}只")
-    print(f"止盈/止损: {TAKE_PROFIT:.0%}/{STOP_LOSS:.0%}")
-    print(f"调仓周期: {REBALANCE_DAYS}天")
-    print(f"最低得分: {MIN_SCORE}")
-    print("=" * 80)
-
-    # 执行
-    print("\n[1/5] 加载数据...")
-    df_raw = load_multiple_files(DATA_PATH)
-
-    print("\n[2/5] 数据预处理...")
-    df = preprocess_data(df_raw, START_DATE, END_DATE)
-    df = optimize_memory(df)
-
-    print("\n[3/5] 计算因子...")
-    df = calculate_factor_library(df)
-    df = calculate_dynamic_scores(df)
-
-    print("\n[4/5] 市场择时...")
-    df = calculate_market_timing(df, lookback_days=60, min_trading_days_ratio=0.2)
-
-    print("\n[5/5] 生成信号并回测...")
-    df = generate_signals(df, MAX_POSITIONS, MIN_SCORE)
-
-    results, trades = backtest(
-        df, INITIAL_CAPITAL, TRANSACTION_COST,
-        MAX_POSITIONS, STOP_LOSS, TAKE_PROFIT, REBALANCE_DAYS
-    )
-
-    metrics = evaluate(results, trades, INITIAL_CAPITAL)
-
-    # 保存结果
-    results.to_csv('backtest_v93_results.csv', index=False)
-    if len(trades) > 0:
-        trades.to_csv('backtest_v93_trades.csv', index=False)
-        print("\n✅ 结果已保存: backtest_v93_results.csv, backtest_v93_trades.csv")
-
-
-if __name__ == "__main__":
-    main()
