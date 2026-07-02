@@ -33,7 +33,7 @@ def update_stock_daily_all(fetch_task_create_request: FetchTaskCreateRequest, st
 @router.post("/daily/recommend")
 def get_recommend_stocks(stock_recommend_request: StockRecommendRequest,
                          signal_backtest_service: SignalBacktestServiceDep):
-    return signal_backtest_service.get_daily_trading_signal(
+    result = signal_backtest_service.get_daily_trading_signal(
         strategy_name=stock_recommend_request.strategy_name,
         current_positions=stock_recommend_request.current_positions,
         cash=stock_recommend_request.cash,
@@ -44,6 +44,14 @@ def get_recommend_stocks(stock_recommend_request: StockRecommendRequest,
         min_score=stock_recommend_request.min_score,
         transaction_cost=stock_recommend_request.transaction_cost,
     )
+    # result = {'buy_list': [], 'execution_date': '2026-06-10', 'hold_list': [], 'sell_list_today': [],
+    #           'sell_list_tomorrow': [], 'signal_date': '2026-06-09', 'stop_loss_today': False,
+    #           'summary': {'active_holdings': 0, 'available_cash': 100000.0, 'avg_score_buy': 0, 'current_positions': 0,
+    #                       'market_ok': False, 'reason_stats': {'signal_lost': 0, 'stop_loss': 0, 'take_profit': 0},
+    #                       'sell_today': 0, 'sell_tomorrow': 0, 'signal_count': 0, 'suggest_buy': 0,
+    #                       'suggest_buy_cash': 0,
+    #                       'suggest_hold': 0, 'total_candidates': 1681}, 'updated_cash': 100000.0}
+    return result
 
 
 @router.post("/backtest/run")

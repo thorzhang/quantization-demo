@@ -3,7 +3,7 @@
 """
 @Time   : 2026/1/6   
 @Author : zhanglei
-@File   : app.py
+@File   : celery_app.py
 """
 
 from celery import Celery
@@ -42,7 +42,7 @@ celery_app.conf.update(
     task_soft_time_limit=settings.CELERY_TASK_SOFT_TIME_LIMIT,
 
     # 任务结果过期时间（秒）
-    result_expires=3600,
+    result_expires=86400,
 
     # 任务限流（每秒最大任务数）
     task_annotations={

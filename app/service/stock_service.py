@@ -11,6 +11,7 @@ from typing import List
 from uuid import UUID
 
 import akshare as ak
+from billiard.exceptions import SoftTimeLimitExceeded
 
 from app.core.enums.task_enum import FetchTaskStatus
 from app.integration.datasource.baostock import BaostockSource
@@ -124,6 +125,8 @@ class StockService:
             try:
                 data = source.fetch_one_history(symbol, start_date, end_date)
                 return data
+            except SoftTimeLimitExceeded:
+                raise
             except Exception as e:
                 last_error = e
 

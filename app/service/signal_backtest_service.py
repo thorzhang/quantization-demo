@@ -1,9 +1,12 @@
+import logging
 from datetime import date
 from typing import Dict, Any
 
 import pandas as pd
 
 from app.strategy.selector import StrategySelector
+
+logger = logging.getLogger(__name__)
 
 
 class SignalBacktestService:
@@ -42,22 +45,22 @@ class SignalBacktestService:
         current_positions = current_positions or {}
         strategy = StrategySelector.get_strategy(strategy_name)
 
-        print("=" * 80)
-        print("量化策略 v9.3 - 每日交易信号生成 (T日)")
-        print("=" * 80)
-        print("时序逻辑:")
-        print("  T日(今日盘中/收盘后): 止盈止损立即执行 → 计算因子 → 生成明日买入信号")
-        print("  T+1日(明日开盘): 执行买入")
-        print(f"\n【策略参数】")
-        print(f"当前现金: {cash:,.0f}")
-        print(f"最大持仓: {max_positions}只")
-        print(f"止盈/止损: {take_profit:.0%}/{stop_loss:.0%}")
-        print(f"调仓周期: {rebalance_days}天")
-        print(f"最低得分: {min_score}")
-        print("=" * 80)
+        logger.info("=" * 80)
+        logger.info("量化策略 v9.3 - 每日交易信号生成 (T日)")
+        logger.info("=" * 80)
+        logger.info("时序逻辑:")
+        logger.info("  T日(今日盘中/收盘后): 止盈止损立即执行 → 计算因子 → 生成明日买入信号")
+        logger.info("  T+1日(明日开盘): 执行买入")
+        logger.info(f"\n【策略参数】")
+        logger.info(f"当前现金: {cash:,.0f}")
+        logger.info(f"最大持仓: {max_positions}只")
+        logger.info(f"止盈/止损: {take_profit:.0%}/{stop_loss:.0%}")
+        logger.info(f"调仓周期: {rebalance_days}天")
+        logger.info(f"最低得分: {min_score}")
+        logger.info("=" * 80)
 
         # 1. 获取最新数据
-        print("加载数据...")
+        logger.info("加载数据...")
 
         required_days = 120
         all_data = self.stock_daily_repo.get_all_recent_kline(limit=required_days)
@@ -89,11 +92,11 @@ class SignalBacktestService:
             latest_date = df_raw['date'].max()
             start_date = earliest_date.strftime('%Y-%m-%d')
             end_date = latest_date.strftime('%Y-%m-%d')
-            print(f"数据时间范围: {start_date} ~ {end_date}")
+            logger.info(f"数据时间范围: {start_date} ~ {end_date}")
         else:
             start_date = None
             end_date = None
-            print("警告: 未获取到任何数据")
+            logger.info("警告: 未获取到任何数据")
             return {
                 'buy_list': [],
                 'sell_list': [],
@@ -117,9 +120,9 @@ class SignalBacktestService:
         latest_date = df_with_signals['date'].max()
         today_data = df_with_signals[df_with_signals['date'] == latest_date].copy()
 
-        print(f"\n信号生成日期(T日): {latest_date.strftime('%Y-%m-%d')}")
-        print(f"今日候选股票数: {len(today_data)}")
-        print(f"今日信号股票数: {today_data['signal'].sum()}")
+        logger.info(f"\n信号生成日期(T日): {latest_date.strftime('%Y-%m-%d')}")
+        logger.info(f"今日候选股票数: {len(today_data)}")
+        logger.info(f"今日信号股票数: {today_data['signal'].sum()}")
 
         # 4. 获取今日的评分和信号
         score_map = today_data.set_index('symbol')['score'].to_dict()
@@ -182,7 +185,7 @@ class SignalBacktestService:
                     'buy_date': buy_date,
                     'hold_days': (latest_date - buy_date).days if buy_date else 0
                 })
-                print(f"  ⚠️ 止损信号: {symbol} 亏损{low_ret:.1%}, 今日立即卖出")
+                logger.info(f"  ⚠️ 止损信号: {symbol} 亏损{low_ret:.1%}, 今日立即卖出")
 
             elif high_ret >= take_profit:
                 # 触发止盈，今天立即卖出
@@ -202,7 +205,7 @@ class SignalBacktestService:
                     'buy_date': buy_date,
                     'hold_days': (latest_date - buy_date).days if buy_date else 0
                 })
-                print(f"  ✅ 止盈信号: {symbol} 盈利{take_profit:.1%}, 今日立即卖出")
+                logger.info(f"  ✅ 止盈信号: {symbol} 盈利{take_profit:.1%}, 今日立即卖出")
             else:
                 # 检查是否应该因为信号消失而卖出（第二天执行）
                 should_sell_signal = not signal_map.get(symbol, False)
@@ -222,7 +225,7 @@ class SignalBacktestService:
                         'buy_date': buy_date,
                         'hold_days': (latest_date - buy_date).days if buy_date else 0
                     })
-                    print(f"  📉 信号消失: {symbol} 得分{score_map.get(symbol, 0):.3f}, 建议明日卖出")
+                    logger.info(f"  📉 信号消失: {symbol} 得分{score_map.get(symbol, 0):.3f}, 建议明日卖出")
                 else:
                     # 继续持有
                     hold_list.append({
@@ -327,59 +330,60 @@ class SignalBacktestService:
                 'sell_tomorrow': len(sell_list_tomorrow),
                 'suggest_hold': len(hold_list),
                 'available_cash': updated_cash,
-                'market_ok': today_data['market_ok'].iloc[0] if len(today_data) > 0 else False,
+                'market_ok': bool(today_data['market_ok'].iloc[0]) if len(today_data) > 0 else False,
                 'avg_score_buy': sum([b['score'] for b in buy_list]) / len(buy_list) if buy_list else 0,
                 'reason_stats': {
                     'stop_loss': len([s for s in sell_list_today if s['reason'] == 'stop_loss']),
                     'take_profit': len([s for s in sell_list_today if s['reason'] == 'take_profit']),
                     'signal_lost': len([s for s in sell_list_today if s['reason'] == 'signal_lost'])
                 }
-            }
+            },
+            "reason": strategy.reason(),
         }
 
         # 10. 打印详细建议
-        print("\n" + "=" * 80)
-        print("【交易建议】")
-        print("=" * 80)
+        logger.info("\n" + "=" * 80)
+        logger.info("【交易建议】")
+        logger.info("=" * 80)
 
         if result['sell_list_today']:
-            print(f"\n🔴 今日立即卖出 ({len(result['sell_list_today'])}只):")
+            logger.info(f"\n🔴 今日立即卖出 ({len(result['sell_list_today'])}只):")
             for sell in result['sell_list_today']:
                 if sell['reason'] == 'stop_loss':
-                    print(f"  {sell['symbol']}: 止损 {sell['loss_pct']:.1%} @ {sell['sell_price']:.2f}")
+                    logger.info(f"  {sell['symbol']}: 止损 {sell['loss_pct']:.1%} @ {sell['sell_price']:.2f}")
                 elif sell['reason'] == 'take_profit':
-                    print(f"  {sell['symbol']}: 止盈 +{sell['profit_pct']:.1%} @ {sell['sell_price']:.2f}")
+                    logger.info(f"  {sell['symbol']}: 止盈 +{sell['profit_pct']:.1%} @ {sell['sell_price']:.2f}")
 
         if result['sell_list_tomorrow']:
-            print(f"\n🟡 明日卖出 ({len(result['sell_list_tomorrow'])}只):")
+            logger.info(f"\n🟡 明日卖出 ({len(result['sell_list_tomorrow'])}只):")
             for sell in result['sell_list_tomorrow']:
-                print(f"  {sell['symbol']}: 信号消失, 得分{sell['current_score']:.3f}")
+                logger.info(f"  {sell['symbol']}: 信号消失, 得分{sell['current_score']:.3f}")
 
         if result['buy_list']:
-            print(f"\n🟢 明日买入 ({len(result['buy_list'])}只):")
+            logger.info(f"\n🟢 明日买入 ({len(result['buy_list'])}只):")
             for buy in result['buy_list']:
-                print(f"  {buy['symbol']}: 得分={buy['score']:.3f}, "
-                      f"建议买入{buy['suggest_shares']}股, "
-                      f"约{buy['suggest_value']:,.0f}元")
+                logger.info(f"  {buy['symbol']}: 得分={buy['score']:.3f}, "
+                            f"建议买入{buy['suggest_shares']}股, "
+                            f"约{buy['suggest_value']:,.0f}元")
 
         if result['hold_list']:
-            print(f"\n⚪ 继续持有 ({len(result['hold_list'])}只):")
+            logger.info(f"\n⚪ 继续持有 ({len(result['hold_list'])}只):")
             for hold in result['hold_list'][:5]:
                 ret_str = f", 收益率={hold.get('current_return', 0):.1%}" if 'current_return' in hold else ""
-                print(f"  {hold['symbol']}: 得分={hold['score']:.3f}{ret_str}")
+                logger.info(f"  {hold['symbol']}: 得分={hold['score']:.3f}{ret_str}")
             if len(result['hold_list']) > 5:
-                print(f"  ... 及其他{len(result['hold_list']) - 5}只")
+                logger.info(f"  ... 及其他{len(result['hold_list']) - 5}只")
 
-        print(f"\n💰 资金状况:")
-        print(f"  当前现金: {cash:,.0f}")
-        print(f"  卖出后现金: {updated_cash:,.0f}")
-        print(f"  预计买入金额: {result['summary']['suggest_buy_cash']:,.0f}")
-        print(f"  剩余现金: {updated_cash - result['summary']['suggest_buy_cash']:,.0f}")
+        logger.info(f"\n💰 资金状况:")
+        logger.info(f"  当前现金: {cash:,.0f}")
+        logger.info(f"  卖出后现金: {updated_cash:,.0f}")
+        logger.info(f"  预计买入金额: {result['summary']['suggest_buy_cash']:,.0f}")
+        logger.info(f"  剩余现金: {updated_cash - result['summary']['suggest_buy_cash']:,.0f}")
 
         if not result['summary']['market_ok']:
-            print(f"\n⚠️  市场择时信号: 当前市场环境不佳，建议谨慎操作")
+            logger.info(f"\n⚠️  市场择时信号: 当前市场环境不佳，建议谨慎操作")
 
-        print("\n" + "=" * 80)
+        logger.info("\n" + "=" * 80)
 
         return result
 
@@ -399,21 +403,21 @@ class SignalBacktestService:
 
         strategy = StrategySelector.get_strategy(strategy_name)
 
-        print("=" * 80)
-        print("量化策略 v9.3 - 时序修正版")
-        print("=" * 80)
-        print("时序逻辑:")
-        print("  T日: 计算因子 → 市场择时 → 生成信号")
-        print("  T+1日: 开盘执行买入")
-        print(f"\n【策略参数】")
-        print(f"最大持仓: {max_positions}只")
-        print(f"止盈/止损: {take_profit:.0%}/{stop_loss:.0%}")
-        print(f"调仓周期: {rebalance_days}天")
-        print(f"最低得分: {min_score}")
-        print("=" * 80)
+        logger.info("=" * 80)
+        logger.info("量化策略 v9.3 - 时序修正版")
+        logger.info("=" * 80)
+        logger.info("时序逻辑:")
+        logger.info("  T日: 计算因子 → 市场择时 → 生成信号")
+        logger.info("  T+1日: 开盘执行买入")
+        logger.info(f"\n【策略参数】")
+        logger.info(f"最大持仓: {max_positions}只")
+        logger.info(f"止盈/止损: {take_profit:.0%}/{stop_loss:.0%}")
+        logger.info(f"调仓周期: {rebalance_days}天")
+        logger.info(f"最低得分: {min_score}")
+        logger.info("=" * 80)
 
         # 执行
-        print("加载数据...")
+        logger.info("加载数据...")
 
         # 获取所有股票最新指标
         all_data = self.stock_daily_repo.get_all_recent_kline(limit=120)
@@ -454,7 +458,7 @@ class SignalBacktestService:
         results.to_csv('backtest_v93_results.csv', index=False)
         if len(trades) > 0:
             trades.to_csv('backtest_v93_trades.csv', index=False)
-            print("\n✅ 结果已保存: backtest_v93_results.csv, backtest_v93_trades.csv")
+            logger.info("\n✅ 结果已保存: backtest_v93_results.csv, backtest_v93_trades.csv")
 
     def _get_next_trading_day(self, current_date) -> date:
         """获取下一个交易日（需要根据实际交易日历实现）"""

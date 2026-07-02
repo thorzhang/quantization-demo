@@ -10,6 +10,7 @@ import time
 from datetime import datetime
 
 import baostock as bs
+from billiard.exceptions import SoftTimeLimitExceeded
 from func_timeout import func_timeout, FunctionTimedOut
 
 from app.core.constant.stock_constant import (
@@ -47,7 +48,8 @@ class BaostockSource(BaseDataSource):
                     start_date=start_date,
                     end_date=end_date
                 )
-
+            except SoftTimeLimitExceeded:
+                raise
             except Exception as e:
 
                 last_error = e
@@ -117,6 +119,8 @@ class BaostockSource(BaseDataSource):
                         "adjustflag": "2",
                     }
                 )
+            except SoftTimeLimitExceeded:
+                raise
             except FunctionTimedOut:
                 raise TimeoutError(
                     f"baostock query timeout: symbol={symbol}"
@@ -137,6 +141,8 @@ class BaostockSource(BaseDataSource):
                         self._safe_next,
                         args=(rs,)
                     )
+                except SoftTimeLimitExceeded:
+                    raise
                 except FunctionTimedOut:
                     raise TimeoutError(
                         f"baostock rs.next timeout: symbol={symbol}"
@@ -191,6 +197,8 @@ class BaostockSource(BaseDataSource):
         finally:
             try:
                 bs.logout()
+            except SoftTimeLimitExceeded:
+                raise
             except Exception:
                 pass
 

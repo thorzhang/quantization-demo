@@ -5,13 +5,15 @@
 @Author : zhanglei
 @File   : app.py
 """
-
+import logging
 from typing import List
 
 import numpy as np
 import pandas as pd
 
 from app.strategy.base import BaseStrategy
+
+logger = logging.getLogger(__name__)
 
 
 class MomentumStrategy(BaseStrategy):
@@ -59,10 +61,10 @@ class MomentumStrategy(BaseStrategy):
         df = df.dropna(subset=['close', 'ret', 'open', 'volume'])
         df = df.sort_values(['symbol', 'date']).reset_index(drop=True)
 
-        print("\n数据预处理完成:")
-        print(f"时间范围: {df['date'].min()} ~ {df['date'].max()}")
-        print(f"股票数量: {df['symbol'].nunique()}")
-        print(f"数据量: {len(df):,}")
+        logger.info("\n数据预处理完成:")
+        logger.info(f"时间范围: {df['date'].min()} ~ {df['date'].max()}")
+        logger.info(f"股票数量: {df['symbol'].nunique()}")
+        logger.info(f"数据量: {len(df):,}")
 
         return df
 
@@ -89,7 +91,7 @@ class MomentumStrategy(BaseStrategy):
                 pass
 
         memory_usage = df.memory_usage(deep=True).sum() / 1024 ** 2
-        print(f"优化后内存: {memory_usage:.2f} MB")
+        logger.info(f"优化后内存: {memory_usage:.2f} MB")
         return df
 
     # 2. 因子计算
@@ -240,9 +242,9 @@ class MomentumStrategy(BaseStrategy):
 
         total_days = len(market_daily)
         good_days = market_daily['market_ok'].sum()
-        print(f"\n市场择时统计:")
-        print(f"  可交易天数: {good_days}/{total_days} ({good_days / total_days:.1%})")
-        print(f"  使用历史窗口: {lookback_days}天")
+        logger.info(f"\n市场择时统计:")
+        logger.info(f"  可交易天数: {good_days}/{total_days} ({good_days / total_days:.1%})")
+        logger.info(f"  使用历史窗口: {lookback_days}天")
 
         return df
 
@@ -253,18 +255,18 @@ class MomentumStrategy(BaseStrategy):
         信号将用于T+1日开盘买入
         """
 
-        print("\n[1/4] 数据预处理...")
+        logger.info("\n[1/4] 数据预处理...")
         df = self.preprocess_data(df_raw, start_date, end_date)
         df = self.optimize_memory(df)
 
-        print("\n[2/4] 计算因子...")
+        logger.info("\n[2/4] 计算因子...")
         df = self.calculate_factor_library(df)
         df = self.calculate_dynamic_scores(df)
 
-        print("\n[3/4] 市场择时...")
+        logger.info("\n[3/4] 市场择时...")
         df = self.calculate_market_timing(df, lookback_days=60, min_trading_days_ratio=0.2)
 
-        print("\n[4/4] 生成信号...")
+        logger.info("\n[4/4] 生成信号...")
 
         # 买入条件
         buy_condition = (
@@ -290,10 +292,10 @@ class MomentumStrategy(BaseStrategy):
         # 统计
         signal_df = df[df['signal']].groupby('date').size()
         if len(signal_df) > 0:
-            print(f"\n信号统计:")
-            print(f"  平均每日信号数: {signal_df.mean():.1f}")
-            print(f"  信号天数: {len(signal_df)}/{len(df['date'].unique())}")
-            print(f"  总信号数: {df['signal'].sum()}")
+            logger.info(f"\n信号统计:")
+            logger.info(f"  平均每日信号数: {signal_df.mean():.1f}")
+            logger.info(f"  信号天数: {len(signal_df)}/{len(df['date'].unique())}")
+            logger.info(f"  总信号数: {df['signal'].sum()}")
 
         return df
 
@@ -329,12 +331,12 @@ class MomentumStrategy(BaseStrategy):
         trades = []
         last_rebalance = -rebalance_days
 
-        print(f"\n开始回测")
-        print(f"交易日: {len(trading_days)}")
-        print(f"最大持仓: {max_positions}只")
-        print(f"止盈/止损: {take_profit:.0%}/{stop_loss:.0%}")
-        print(f"调仓周期: {rebalance_days}天")
-        print("-" * 70)
+        logger.info(f"\n开始回测")
+        logger.info(f"交易日: {len(trading_days)}")
+        logger.info(f"最大持仓: {max_positions}只")
+        logger.info(f"止盈/止损: {take_profit:.0%}/{stop_loss:.0%}")
+        logger.info(f"调仓周期: {rebalance_days}天")
+        logger.info("-" * 70)
 
         for i, today in enumerate(trading_days):
             if today not in daily_data:
@@ -448,14 +450,14 @@ class MomentumStrategy(BaseStrategy):
 
             if (i + 1) % 100 == 0:
                 ret_pct = (total_value / initial_capital - 1) * 100
-                print(
+                logger.info(
                     f"进度: {i + 1}/{len(trading_days)} | 净值: {total_value:,.0f} | 收益: {ret_pct:+.1f}% | 持仓: {len(positions)}")
 
         return pd.DataFrame(portfolio), pd.DataFrame(trades)
 
     def evaluate(self, results, trades, initial_capital=1000000):
         if len(results) == 0:
-            print("无数据")
+            logger.info("无数据")
             return {}
 
         final_value = results['total_value'].iloc[-1]
@@ -474,23 +476,23 @@ class MomentumStrategy(BaseStrategy):
 
         sharpe = (annual_return - 0.02) / annual_vol if annual_vol > 0 else 0
 
-        print("\n" + "=" * 80)
-        print("回测结果 v9.3 - 时序修正版")
-        print("=" * 80)
-        print(
+        logger.info("\n" + "=" * 80)
+        logger.info("回测结果 v9.3 - 时序修正版")
+        logger.info("=" * 80)
+        logger.info(
             f"回测区间: {results['date'].iloc[0].strftime('%Y-%m-%d')} ~ {results['date'].iloc[-1].strftime('%Y-%m-%d')}")
-        print(f"回测天数: {days} 天 ({years:.2f}年)")
+        logger.info(f"回测天数: {days} 天 ({years:.2f}年)")
 
-        print(f"\n{'【收益指标】':^30}")
-        print(f"初始资金: {initial_capital:>20,.0f}")
-        print(f"最终资金: {final_value:>20,.0f}")
-        print(f"总收益率: {total_return:>19.2%}")
-        print(f"年化收益率: {annual_return:>18.2%}")
+        logger.info(f"\n{'【收益指标】':^30}")
+        logger.info(f"初始资金: {initial_capital:>20,.0f}")
+        logger.info(f"最终资金: {final_value:>20,.0f}")
+        logger.info(f"总收益率: {total_return:>19.2%}")
+        logger.info(f"年化收益率: {annual_return:>18.2%}")
 
-        print(f"\n{'【风险指标】':^30}")
-        print(f"年化波动率: {annual_vol:>19.2%}")
-        print(f"最大回撤: {max_drawdown:>20.2%}")
-        print(f"夏普比率: {sharpe:>21.2f}")
+        logger.info(f"\n{'【风险指标】':^30}")
+        logger.info(f"年化波动率: {annual_vol:>19.2%}")
+        logger.info(f"最大回撤: {max_drawdown:>20.2%}")
+        logger.info(f"夏普比率: {sharpe:>21.2f}")
 
         if len(trades) > 0:
             win_rate = (trades['return_pct'] > 0).mean()
@@ -499,18 +501,18 @@ class MomentumStrategy(BaseStrategy):
             avg_loss = trades[trades['return_pct'] <= 0]['return_pct'].mean() if len(
                 trades[trades['return_pct'] <= 0]) > 0 else 0
 
-            print(f"\n{'【交易指标】':^30}")
-            print(f"总交易次数: {len(trades):>19d}")
-            print(f"交易胜率: {win_rate:>21.1%}")
-            print(f"平均盈利: {avg_win:>20.2f}%")
-            print(f"平均亏损: {avg_loss:>20.2f}%")
+            logger.info(f"\n{'【交易指标】':^30}")
+            logger.info(f"总交易次数: {len(trades):>19d}")
+            logger.info(f"交易胜率: {win_rate:>21.1%}")
+            logger.info(f"平均盈利: {avg_win:>20.2f}%")
+            logger.info(f"平均亏损: {avg_loss:>20.2f}%")
 
             if 'reason' in trades.columns:
-                print(f"\n{'【卖出原因】':^30}")
+                logger.info(f"\n{'【卖出原因】':^30}")
                 for reason in trades['reason'].unique():
                     count = len(trades[trades['reason'] == reason])
-                    print(f"  {reason}: {count} ({count / len(trades):.1%})")
+                    logger.info(f"  {reason}: {count} ({count / len(trades):.1%})")
 
-        print("=" * 80)
+        logger.info("=" * 80)
         return {'total_return': total_return, 'annual_return': annual_return, 'max_drawdown': max_drawdown,
                 'sharpe': sharpe}
